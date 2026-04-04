@@ -1,0 +1,11 @@
+# General
+.env
+
+# Backend
+.pytest_cache
+.ruff_cache
+.venv
+__pycache__
+
+# Frontend
+node_modules

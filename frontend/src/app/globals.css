@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+:root {
+  /* Warm Color Palette */
+  --color-primary: #4e6240;
+  --color-primary-foreground: #ffffff;
+  --color-surface: #faf9f5;
+  --color-surface-container: #f5f3ef;
+  --color-surface-container-high: #eeebe4;
+  --color-foreground: #1c1917;
+  --color-foreground-muted: #78716c;
+  
+  /* Spacing */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-full: 9999px;
+}
+
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-primary-foreground: var(--color-primary-foreground);
+  --color-surface: var(--color-surface);
+  --color-surface-container: var(--color-surface-container);
+  --color-surface-container-high: var(--color-surface-container-high);
+  --color-foreground: var(--color-foreground);
+  --color-foreground-muted: var(--color-foreground-muted);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-full: var(--radius-full);
+}
+
+body {
+  background-color: var(--color-surface);
+  color: var(--color-foreground);
+}
+
+/* Typography */
+.font-newsreader {
+  font-family: var(--font-newsreader);
+}
+
+.font-manrope {
+  font-family: var(--font-manrope);
+}
