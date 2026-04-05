@@ -7,6 +7,7 @@ export interface User {
   id: string;
   email: string;
   created_at: string;
+  profile_photo_url?: string | null;
 }
 
 export interface AuthData {

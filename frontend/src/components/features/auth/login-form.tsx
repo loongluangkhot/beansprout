@@ -9,6 +9,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,8 @@ export function LoginForm() {
   const { login: loginUser, isLoading, error, clearError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const searchParams = useSearchParams();
+  const loggedOut = searchParams.get("logged_out") === "true";
   
   const {
     register,
@@ -133,6 +136,13 @@ export function LoginForm() {
               Remember me
             </Label>
           </div>
+
+          {/* Logged Out Success Message */}
+          {loggedOut && (
+            <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
+              Thanks for visiting! Come back soon.
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (

@@ -4,13 +4,18 @@ Security Utilities
 This module provides password hashing and JWT token utilities.
 """
 
+import logging
 import re
 from datetime import UTC, datetime, timedelta
+from threading import Lock
+from typing import Any
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Configuration constants - load from settings
 SECRET_KEY = settings.SECRET_KEY
@@ -19,6 +24,60 @@ ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 # Password context using bcrypt
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+# Token blocklist for logout functionality
+# In production, use Redis for distributed blocklist
+_token_blocklist: dict[str, float] = {}  # token -> expiry timestamp
+_blocklist_lock = Lock()
+
+
+def add_to_blocklist(token: str) -> None:
+    """
+    Add a token to the blocklist.
+    
+    Args:
+        token: The JWT token to invalidate
+    """
+    # Get token expiry from the token itself
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        exp = payload.get("exp")
+        if exp:
+            with _blocklist_lock:
+                _token_blocklist[token] = exp
+            logger.info(f"Token added to blocklist, expires at {exp}")
+            return
+    except JWTError:
+        pass
+    
+    # If we can't decode, add with default expiry (24 hours)
+    with _blocklist_lock:
+        _token_blocklist[token] = datetime.now(UTC).timestamp() + 86400
+
+
+def is_token_blocked(token: str) -> bool:
+    """
+    Check if a token is in the blocklist.
+    
+    Args:
+        token: The JWT token to check
+        
+    Returns:
+        True if token is blocked, False otherwise
+    """
+    current_time = datetime.now(UTC).timestamp()
+    
+    with _blocklist_lock:
+        # Clean expired entries
+        expired_tokens = [
+            t for t, exp_time in _token_blocklist.items() 
+            if exp_time < current_time
+        ]
+        for t in expired_tokens:
+            del _token_blocklist[t]
+        
+        return token in _token_blocklist
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -106,6 +165,8 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
 def decode_access_token(token: str) -> dict | None:
     """
     Decode and validate a JWT access token.
+    
+    Also checks if token is in the blocklist (logged out).
 
     Args:
         token: The JWT token string to decode
@@ -113,6 +174,10 @@ def decode_access_token(token: str) -> dict | None:
     Returns:
         Decoded token payload or None if invalid
     """
+    # Check if token is blocked first
+    if is_token_blocked(token):
+        return None
+        
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload

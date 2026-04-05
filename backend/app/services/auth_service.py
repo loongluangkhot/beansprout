@@ -5,14 +5,17 @@ This module provides authentication business logic including
 user registration and token generation.
 """
 
+import logging
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import create_access_token, hash_password, verify_password
+from app.core.security import add_to_blocklist, create_access_token, hash_password, verify_password
 from app.models.user import User
 from app.schemas.user import RegisterResponse, UserCreate, UserResponse
+
+logger = logging.getLogger(__name__)
 
 
 class AuthServiceError(Exception):
@@ -63,12 +66,12 @@ class AuthService:
     including user registration, login, and token management.
     """
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession | None = None):
         """
         Initialize the auth service with a database session.
 
         Args:
-            db: SQLAlchemy async database session
+            db: SQLAlchemy async database session (optional for logout)
         """
         self.db = db
 
@@ -185,3 +188,18 @@ class AuthService:
             access_token=access_token,
             token_type="bearer"
         )
+
+    async def logout(self, token: str) -> bool:
+        """
+        Logout a user by invalidating their JWT token.
+        
+        Args:
+            token: The JWT token to invalidate
+            
+        Returns:
+            True if token was successfully added to blocklist
+        """
+        add_to_blocklist(token)
+        logger.info("User logged out, token invalidated")
+        return True
+

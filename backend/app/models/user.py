@@ -8,7 +8,7 @@ import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import Column, DateTime, Index, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -63,6 +63,13 @@ class User(Base):
         onupdate=utc_now,
         nullable=False
     )
+
+    # Profile fields
+    display_name = Column(String(255), nullable=True)
+    bio = Column(String(500), nullable=True)
+    favorite_genres = Column(JSON, nullable=True)
+    reading_history = Column(JSON, nullable=True)
+    profile_photo_url = Column(String(500), nullable=True)
 
     # Create index on email for faster lookups
     __table_args__ = (

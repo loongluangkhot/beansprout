@@ -16,6 +16,8 @@ from app.core.security import (
     validate_password_strength,
     create_access_token,
     decode_access_token,
+    add_to_blocklist,
+    is_token_blocked,
 )
 from app.services.auth_service import (
     AuthService,
@@ -382,3 +384,55 @@ class TestAuthServiceLogin:
         # The authenticate_user method returns None instead of raising
         result = await auth_service.authenticate_user("test@example.com", "password")
         assert result is None
+
+
+class TestTokenBlocklist:
+    """Tests for token blocklist functionality (logout)."""
+    
+    def setup_method(self):
+        """Clear blocklist before each test."""
+        from app.core.security import _token_blocklist
+        _token_blocklist.clear()
+    
+    def test_add_to_blocklist(self):
+        """Adding token to blocklist should work."""
+        # Create a valid token
+        token = create_access_token({"sub": "user123", "email": "test@example.com"})
+        
+        # Add to blocklist
+        add_to_blocklist(token)
+        
+        # Token should now be blocked
+        assert is_token_blocked(token) is True
+    
+    def test_is_token_blocked_without_blocklist(self):
+        """Token not in blocklist should return False."""
+        # Create a unique token by using unique data
+        token = create_access_token({"sub": "uniqueuser123", "email": "unique@example.com"})
+        
+        assert is_token_blocked(token) is False
+    
+    def test_decode_blocked_token_returns_none(self):
+        """Blocked token should return None when decoded."""
+        token = create_access_token({"sub": "user123", "email": "test@example.com"})
+        
+        # Add to blocklist
+        add_to_blocklist(token)
+        
+        # Decode should return None for blocked token
+        result = decode_access_token(token)
+        assert result is None
+    
+    def test_logout_service(self):
+        """AuthService.logout should add token to blocklist."""
+        auth_service = AuthService(None)
+        
+        # Create a token
+        token = create_access_token({"sub": "user123", "email": "test@example.com"})
+        
+        # Run logout (async)
+        import asyncio
+        result = asyncio.get_event_loop().run_until_complete(auth_service.logout(token))
+        
+        assert result is True
+        assert is_token_blocked(token) is True

@@ -6,6 +6,7 @@
 import type { Metadata } from "next";
 import { Manrope, Newsreader } from "next/font/google";
 import { SessionValidator } from "@/components/providers/session-validator";
+import { Header } from "@/components/features/header";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -32,6 +33,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${manrope.variable} ${newsreader.variable} font-manrope antialiased bg-surface text-foreground`}>
         <SessionValidator>
+          <Header />
           {children}
         </SessionValidator>
       </body>

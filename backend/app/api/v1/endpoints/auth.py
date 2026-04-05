@@ -4,20 +4,19 @@ Authentication Endpoints
 This module defines the API endpoints for user authentication.
 """
 
+import logging
 import time
 from collections import defaultdict
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from threading import Lock
-from typing import Any
 
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
-from app.core.database import get_async_session_factory
-from app.schemas.user import LoginRequest, LoginResponse, RegisterResponse, UserCreate
+from app.core.database import get_db, get_async_session_factory
+
+logger = logging.getLogger(__name__)
+from app.schemas.user import LoginRequest, LoginResponse, LogoutResponse, RegisterResponse, UserCreate
 from app.services.auth_service import AuthService, EmailAlreadyExistsError, InvalidCredentialsError, PasswordValidationError
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -470,3 +469,85 @@ async def validate_session(request: Request) -> JSONResponse:
                 }
             }
         )
+
+
+@router.post(
+    "/logout",
+    summary="Logout user",
+    description="Logout the current user by invalidating their JWT token",
+    responses={
+        200: {
+            "description": "Logout successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "data": {
+                            "message": "Successfully logged out"
+                        }
+                    }
+                }
+            }
+        },
+        401: {
+            "description": "Invalid or missing token",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": {
+                            "type": "invalid_token",
+                            "title": "Unauthorized",
+                            "status": 401,
+                            "detail": "Invalid or expired token"
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
+async def logout(request: Request) -> JSONResponse:
+    """
+    Logout the current user.
+    
+    This endpoint invalidates the JWT token by adding it to the blocklist.
+    After logout, the token cannot be used for authenticated requests.
+    """
+    auth_header = request.headers.get("Authorization")
+    
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={
+                "error": {
+                    "type": "invalid_token",
+                    "title": "Unauthorized",
+                    "status": 401,
+                    "detail": "Missing or invalid authorization header"
+                }
+            }
+        )
+    
+    token = auth_header.split(" ")[1]
+    
+    # Decode token to get user info for audit log
+    from app.core.security import decode_access_token
+    user_info = "unknown"
+    payload = decode_access_token(token)
+    if payload:
+        user_info = payload.get("email", "unknown")
+    
+    # Use auth service to logout (adds token to blocklist)
+    auth_service = AuthService(None)
+    await auth_service.logout(token)
+    
+    # Audit log the logout event
+    logger.info(f"AUDIT: User logged out - email: {user_info}")
+    
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "data": {
+                "message": "Successfully logged out"
+            }
+        }
+    )

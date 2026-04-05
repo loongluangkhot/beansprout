@@ -35,3 +35,15 @@ export async function login(
     body: JSON.stringify(data),
   });
 }
+
+/**
+ * Logout the current user
+ */
+export async function logout(
+  token: string
+): Promise<{ data: { message: string } }> {
+  return apiRequest<{ data: { message: string } }>(`${AUTH_ENDPOINT}/logout`, {
+    method: "POST",
+    headers: createAuthHeaders(token),
+  });
+}

@@ -55,7 +55,19 @@ export async function apiRequest<T>(
   options: FetchOptions = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  const response = await fetchWithTimeout(url, options);
+  
+  // Prepare headers - don't set Content-Type for FormData (browser sets it with boundary)
+  const headers: HeadersInit = {
+    ...options.headers,
+  };
+  if (!(options.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  const response = await fetchWithTimeout(url, {
+    ...options,
+    headers,
+  });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));

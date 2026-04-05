@@ -4,10 +4,12 @@ FastAPI Application Entry Point
 Main application module that configures and creates the FastAPI app.
 """
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.config import settings
@@ -48,6 +50,11 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Serve uploaded photos
+    photo_dir = os.getenv("PHOTO_UPLOAD_DIR", "backend/app/uploads/photos")
+    if os.path.isdir(photo_dir):
+        app.mount("/uploads", StaticFiles(directory=photo_dir), name="uploads")
 
     # Include API routers
     app.include_router(api_router, prefix="/api")

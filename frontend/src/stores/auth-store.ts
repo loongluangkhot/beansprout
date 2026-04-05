@@ -22,9 +22,11 @@ export interface AuthState {
   setValidating: (validating: boolean) => void;
   setError: (error: string | null) => void;
   logout: () => void;
+  performLogout: () => Promise<void>;
   clearError: () => void;
   validateSession: () => Promise<boolean>;
   login: (email: string, password: string) => Promise<void>;
+  updateUser: (updates: Partial<User>) => void;
 }
 
 interface SessionValidationResponse {
@@ -79,6 +81,11 @@ export const useAuthStore = create<AuthState>()(
       setError: (error) =>
         set({ error, isLoading: false, isValidating: false }),
       
+      updateUser: (updates) =>
+        set((state) => ({
+          user: state.user ? { ...state.user, ...updates } : null,
+        })),
+      
       logout: () =>
         set({
           user: null,
@@ -90,6 +97,25 @@ export const useAuthStore = create<AuthState>()(
       
       clearError: () =>
         set({ error: null }),
+      
+      // Full logout: call backend and clear local state
+      performLogout: async () => {
+        const { token, logout } = get();
+        
+        if (token) {
+          try {
+            // Dynamic import to avoid circular dependencies
+            const { logout: logoutApi } = await import("@/lib/api/auth");
+            await logoutApi(token);
+          } catch {
+            // Even if API call fails, continue with local logout
+            // Token might already be invalid
+          }
+        }
+        
+        // Clear local state regardless of API result
+        logout();
+      },
       
       validateSession: async () => {
         const { token, logout } = get();

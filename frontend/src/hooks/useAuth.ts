@@ -22,7 +22,7 @@ export function useAuth() {
     setAuth,
     setLoading,
     setError,
-    logout,
+    performLogout,
     clearError,
     login,
   } = useAuthStore();
@@ -59,12 +59,13 @@ export function useAuth() {
   );
 
   /**
-   * Log out the current user
-   */
-  const handleLogout = useCallback(() => {
-    logout();
-    router.push("/login");
-  }, [logout, router]);
+    * Log out the current user - calls backend to invalidate token, then clears local state
+    */
+  const handleLogout = useCallback(async () => {
+    await performLogout();
+    // Redirect to login with a friendly message
+    router.push("/login?logged_out=true");
+  }, [performLogout, router]);
 
   /**
    * Login with existing credentials
