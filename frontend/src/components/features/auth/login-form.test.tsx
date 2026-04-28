@@ -6,23 +6,32 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { LoginForm } from "./login-form";
 
+jest.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(""),
+}));
+
 // Mock the useAuth hook
+const mockUseAuth = jest.fn();
 jest.mock("@/hooks/useAuth", () => ({
-  useAuth: () => ({
-    login: jest.fn(),
-    isLoading: false,
-    error: null,
-    clearError: jest.fn(),
-  }),
+  useAuth: () => mockUseAuth(),
 }));
 
 describe("LoginForm", () => {
+  beforeEach(() => {
+    mockUseAuth.mockReturnValue({
+      login: jest.fn(),
+      isLoading: false,
+      error: null,
+      clearError: jest.fn(),
+    });
+  });
+
   describe("Form Rendering", () => {
     it("renders login form with email and password fields", () => {
       render(<LoginForm />);
       
       expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
     });
 
     it("renders sign in button", () => {
@@ -61,6 +70,7 @@ describe("LoginForm", () => {
       
       const emailInput = screen.getByLabelText(/email/i);
       fireEvent.change(emailInput, { target: { value: "invalid-email" } });
+      fireEvent.blur(emailInput);
       
       const submitButton = screen.getByRole("button", { name: /sign in/i });
       fireEvent.click(submitButton);
@@ -89,7 +99,7 @@ describe("LoginForm", () => {
     it("toggles password visibility", () => {
       render(<LoginForm />);
       
-      const passwordInput = screen.getByLabelText(/password/i);
+      const passwordInput = screen.getByLabelText(/^password$/i);
       expect(passwordInput).toHaveAttribute("type", "password");
       
       const toggleButton = screen.getByLabelText(/show password/i);
@@ -104,8 +114,7 @@ describe("LoginForm", () => {
 
   describe("Error Display", () => {
     it("displays error message when error prop is provided", () => {
-      const { useAuth } = require("@/hooks/useAuth");
-      useAuth.mockReturnValue({
+      mockUseAuth.mockReturnValue({
         login: jest.fn(),
         isLoading: false,
         error: "Invalid email or password",
@@ -120,8 +129,7 @@ describe("LoginForm", () => {
 
   describe("Loading State", () => {
     it("disables submit button when loading", () => {
-      const { useAuth } = require("@/hooks/useAuth");
-      useAuth.mockReturnValue({
+      mockUseAuth.mockReturnValue({
         login: jest.fn(),
         isLoading: true,
         error: null,

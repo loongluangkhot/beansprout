@@ -7,7 +7,7 @@
 
 interface ProfileAvatarProps {
   displayName?: string;
-  email: string;
+  email?: string;
   photoUrl?: string;
   size?: "sm" | "md" | "lg";
 }
@@ -24,6 +24,7 @@ export function ProfileAvatar({
   photoUrl,
   size = "md",
 }: ProfileAvatarProps) {
+  const safeEmail = email ?? "";
   const initials = displayName
     ? displayName
         .split(" ")
@@ -31,21 +32,21 @@ export function ProfileAvatar({
         .join("")
         .toUpperCase()
         .slice(0, 2)
-    : email.charAt(0).toUpperCase();
+    : (safeEmail.charAt(0) || "?").toUpperCase();
 
   if (photoUrl) {
     return (
       <img
         src={photoUrl}
-        alt={displayName || email}
-        className={`${sizeClasses[size]} rounded-full object-cover ring-2 ring-[#4e6240]/20`}
+        alt={displayName || safeEmail || "Profile photo"}
+        className={`${sizeClasses[size]} rounded-full object-cover ring-2 ring-outline-variant/20`}
       />
     );
   }
 
   return (
     <div
-      className={`${sizeClasses[size]} flex items-center justify-center rounded-full bg-[#4e6240] text-white font-medium font-[Manrope]`}
+      className={`${sizeClasses[size]} flex items-center justify-center rounded-full bs-cta font-medium font-manrope`}
     >
       {initials}
     </div>

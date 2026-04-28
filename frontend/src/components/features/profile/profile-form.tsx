@@ -71,7 +71,7 @@ export function ProfileForm({
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Bio Section */}
       <div>
-        <h3 className="font-[Newsreader] text-lg text-[#1b1c1a] mb-2">Bio</h3>
+        <h3 className="font-newsreader text-lg text-foreground mb-2">Bio</h3>
         <BioEditor
           value={watchedBio}
           onChange={(value) => setValue("bio", value, { shouldValidate: true })}
@@ -82,7 +82,7 @@ export function ProfileForm({
 
       {/* Favorite Genres */}
       <div>
-        <h3 className="font-[Newsreader] text-lg text-[#1b1c1a] mb-2">
+        <h3 className="font-newsreader text-lg text-foreground mb-2">
           Favorite Genres (select up to 5)
         </h3>
         <GenreSelector
@@ -95,7 +95,7 @@ export function ProfileForm({
 
       {/* Reading History */}
       <div>
-        <h3 className="font-[Newsreader] text-lg text-[#1b1c1a] mb-2">Reading History</h3>
+        <h3 className="font-newsreader text-lg text-foreground mb-2">Reading History</h3>
         <ReadingHistory
           books={watchedHistory}
           onChange={(books) => setValue("reading_history", books, { shouldValidate: true })}
@@ -113,7 +113,8 @@ export function ProfileForm({
       <Button
         type="submit"
         disabled={isSubmitting || !isValid}
-        className="w-full bg-[#4e6240] hover:bg-[#3d5133] text-white font-[Manrope]"
+        size="lg"
+        className="w-full h-12 font-manrope"
       >
         {isSubmitting ? "Saving..." : "Save"}
       </Button>

@@ -82,8 +82,6 @@ describe("ProfilePhotoUpload", () => {
 
       render(<ProfilePhotoUpload />);
 
-      const input = screen.getByRole("button", { name: /upload new photo/i });
-      
       // Trigger file input change
       fireEvent.change(screen.getByRole("button", { name: /upload new photo/i }), {
         target: { files: [largeFile] },
@@ -91,9 +89,6 @@ describe("ProfilePhotoUpload", () => {
 
       // Since we're triggering via button, need to use the hidden input
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      Object.defineProperty(fileInput, "files", {
-        value: [largeFile],
-      });
       fireEvent.change(fileInput, { target: { files: [largeFile] } });
 
       await waitFor(() => {
@@ -109,9 +104,6 @@ describe("ProfilePhotoUpload", () => {
       render(<ProfilePhotoUpload />);
 
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      Object.defineProperty(fileInput, "files", {
-        value: [invalidFile],
-      });
       fireEvent.change(fileInput, { target: { files: [invalidFile] } });
 
       await waitFor(() => {
@@ -147,7 +139,6 @@ describe("ProfilePhotoUpload", () => {
       const avatarContainer = document.querySelector(".cursor-pointer");
       fireEvent.click(avatarContainer!);
 
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
       // Input should not be triggered when loading
     });
   });

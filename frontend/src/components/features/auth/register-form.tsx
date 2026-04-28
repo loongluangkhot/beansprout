@@ -5,7 +5,7 @@
  * Form for creating a new user account
  */
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check } from "lucide-react";
+import { Check, Eye, EyeOff } from "lucide-react";
 
 // Registration form schema with Zod validation
 const registerSchema = z.object({
@@ -88,9 +88,12 @@ export function RegisterForm() {
   };
 
   return (
-    <Card className="w-full bg-white/80 backdrop-blur-sm border-surface-container-high shadow-lg">
-      <CardHeader className="space-y-2 text-center">
-        <CardTitle className="font-newsreader text-3xl text-foreground">
+    <Card className="w-full bs-panel bs-glass">
+      <CardHeader className="space-y-2 text-left pl-8 pr-6 pt-8">
+        <p className="text-xs uppercase tracking-[0.18em] text-foreground-muted font-manrope">
+          Begin your season
+        </p>
+        <CardTitle className="font-newsreader text-4xl text-foreground leading-tight">
           Join beansprout
         </CardTitle>
         <CardDescription className="text-foreground-muted">
@@ -98,7 +101,7 @@ export function RegisterForm() {
         </CardDescription>
       </CardHeader>
       
-      <CardContent>
+      <CardContent className="px-6 pb-8">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {/* Email Field */}
           <div className="space-y-2">
@@ -109,13 +112,12 @@ export function RegisterForm() {
               id="email"
               type="email"
               placeholder="you@example.com"
-              className="rounded-full bg-surface-container border-surface-container-high px-4 py-6 
-                         focus:border-primary focus:ring-primary/20 transition-colors"
+              className="h-12"
               {...register("email")}
               aria-invalid={!!errors.email}
             />
             {errors.email && (
-              <p className="text-sm text-red-600 mt-1">
+              <p className="text-sm text-destructive mt-1">
                 {errors.email.message}
               </p>
             )}
@@ -131,8 +133,7 @@ export function RegisterForm() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Create a password"
-                className="rounded-full bg-surface-container border-surface-container-high px-4 py-6 
-                           pr-12 focus:border-primary focus:ring-primary/20 transition-colors"
+                className="h-12 pr-12"
                 {...register("password")}
                 aria-invalid={!!errors.password}
               />
@@ -143,21 +144,21 @@ export function RegisterForm() {
                            hover:text-foreground transition-colors"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? "🙈" : "👁"}
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
             
             {/* Password Requirements Checklist */}
             {password.length > 0 && (
-              <div className="mt-3 p-3 rounded-lg bg-surface-container/50 space-y-2">
+              <div className="mt-3 p-3 rounded-lg bg-surface-container-low space-y-2">
                 {requirementsMet.map((req, index) => (
                   <div
                     key={index}
                     className={`flex items-center gap-2 text-sm transition-colors ${
-                      req.met ? "text-green-700" : "text-foreground-muted"
+                      req.met ? "text-foreground" : "text-foreground-muted"
                     }`}
                   >
-                    <Check className="w-4 h-4" />
+                    <Check className={`w-4 h-4 ${req.met ? "opacity-100" : "opacity-40"}`} />
                     <span>{req.label}</span>
                   </div>
                 ))}
@@ -165,7 +166,7 @@ export function RegisterForm() {
             )}
             
             {errors.password && (
-              <p className="text-sm text-red-600 mt-1">
+              <p className="text-sm text-destructive mt-1">
                 {errors.password.message}
               </p>
             )}
@@ -173,14 +174,14 @@ export function RegisterForm() {
 
           {/* Error Message */}
           {error && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+            <div className="p-3 rounded-lg bg-error-container text-foreground text-sm">
               {error}
             </div>
           )}
 
           {/* Success Message */}
           {showSuccess && (
-            <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm flex items-center gap-2">
+            <div className="p-3 rounded-lg bg-success-container text-foreground text-sm flex items-center gap-2">
               <Check className="w-4 h-4" />
               {successMessage}
             </div>
@@ -190,9 +191,8 @@ export function RegisterForm() {
           <Button
             type="submit"
             disabled={isLoading || !allRequirementsMet || showSuccess}
-            className="w-full py-6 rounded-full bg-primary text-primary-foreground font-medium
-                       hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed
-                       shadow-md hover:shadow-lg"
+            size="lg"
+            className="w-full h-12"
           >
             {isLoading ? (
               <span className="flex items-center gap-2">
@@ -210,7 +210,7 @@ export function RegisterForm() {
           </Button>
 
           {/* Sign In Link */}
-          <p className="text-center text-sm text-foreground-muted">
+          <p className="text-center text-sm text-foreground-muted pt-2">
             Already have an account?{" "}
             <a
               href="/login"

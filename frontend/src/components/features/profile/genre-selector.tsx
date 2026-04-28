@@ -5,8 +5,6 @@
 
 "use client";
 
-import { GenreSelector as GenreSelectorType } from "@/lib/api/profile";
-
 interface GenreSelectorProps {
   selected: string[];
   onChange: (genres: string[]) => void;
@@ -55,8 +53,8 @@ export function GenreSelector({ selected, onChange, disabled, error }: GenreSele
               disabled={isDisabled}
               className={`px-3 py-1.5 rounded-full font-[Manrope] text-sm transition-all ${
                 isSelected
-                  ? "bg-[#4e6240] text-white"
-                  : "bg-white border border-[#4e6240]/20 text-[#1b1c1a]/70 hover:border-[#4e6240]/50"
+                  ? "bs-cta"
+                  : "bg-surface-container-low border border-outline-variant/20 text-foreground-muted hover:bg-surface-container"
               } ${isDisabled && !isSelected ? "opacity-50 cursor-not-allowed" : ""}`}
               aria-pressed={isSelected}
             >
@@ -65,15 +63,15 @@ export function GenreSelector({ selected, onChange, disabled, error }: GenreSele
           );
         })}
       </div>
-      <p className={`text-sm font-[Manrope] ${
-        selected.length >= MAX_GENRES 
-          ? "text-[#8b4c00]" 
-          : "text-[#1b1c1a]/50"
-      }`}>
+      <p
+        className={`text-sm font-[Manrope] ${
+          selected.length >= MAX_GENRES ? "text-tertiary" : "text-foreground-muted"
+        }`}
+      >
         {selected.length}/{MAX_GENRES} selected
       </p>
       {error && (
-        <p className="text-sm text-red-500 font-[Manrope]">{error}</p>
+        <p className="text-sm text-destructive font-[Manrope]">{error}</p>
       )}
     </div>
   );

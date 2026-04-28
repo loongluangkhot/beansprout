@@ -7,10 +7,16 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useProfile } from "@/hooks/useProfile";
-import { useAuthStore } from "@/stores/auth-store";
 import { ProfileAvatar } from "./profile-avatar";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 // Validation constants
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -216,7 +222,7 @@ export function ProfilePhotoUpload({
             onClick={handleAvatarClick}
             disabled={isLoading}
             variant="outline"
-            className="font-[Manrope] text-[#4e6240] border-[#4e6240]/20 hover:bg-[#4e6240]/5"
+            className="font-[Manrope]"
           >
             Upload New Photo
           </Button>
@@ -227,7 +233,7 @@ export function ProfilePhotoUpload({
               onClick={handleAvatarClick}
               disabled={isLoading}
               variant="outline"
-              className="font-[Manrope] text-[#4e6240] border-[#4e6240]/20 hover:bg-[#4e6240]/5"
+              className="font-[Manrope]"
             >
               Upload New Photo
             </Button>
@@ -236,27 +242,27 @@ export function ProfilePhotoUpload({
               onClick={() => setIsRemoveDialogOpen(true)}
               disabled={isLoading}
               variant="ghost"
-              className="font-[Manrope] text-red-600 hover:bg-red-50"
+              className="font-[Manrope] text-destructive"
             >
               Remove
             </Button>
           </div>
         )}
         
-        <p className="text-xs text-[#1b1c1a]/50 font-[Manrope]">
+        <p className="text-xs text-foreground-muted font-[Manrope]">
           Supported: JPG, PNG (max 5MB)
         </p>
       </div>
 
       {/* Validation error */}
       {validationError && (
-        <div className="mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-600 font-[Manrope]">
+        <div className="mt-2 px-3 py-2 bg-error-container rounded-lg">
+          <p className="text-sm text-foreground font-[Manrope]">
             {validationError.message}
           </p>
           <button
             onClick={clearValidationError}
-            className="text-xs text-red-500 underline mt-1 font-[Manrope]"
+            className="text-xs text-foreground underline mt-1 font-[Manrope]"
           >
             Dismiss
           </button>
@@ -266,13 +272,13 @@ export function ProfilePhotoUpload({
       {/* Upload progress */}
       {uploadProgress !== null && (
         <div className="mt-2 w-full max-w-[200px]">
-          <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-1 bg-surface-container rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#4e6240] transition-all duration-300"
+              className="h-full bg-tertiary transition-all duration-300"
               style={{ width: `${uploadProgress}%` }}
             />
           </div>
-          <p className="text-xs text-center text-[#1b1c1a]/60 font-[Manrope] mt-1">
+          <p className="text-xs text-center text-foreground-muted font-[Manrope] mt-1">
             Uploading... {uploadProgress}%
           </p>
         </div>
@@ -283,6 +289,9 @@ export function ProfilePhotoUpload({
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="font-[Newsreader]">Preview Your Photo</DialogTitle>
+            <DialogDescription>
+              Make sure it feels like you.
+            </DialogDescription>
           </DialogHeader>
           
           <div className="flex justify-center py-4">
@@ -308,7 +317,7 @@ export function ProfilePhotoUpload({
               type="button"
               onClick={handleUpload}
               disabled={isLoading}
-              className="bg-[#4e6240] hover:bg-[#3d5133] text-white font-[Manrope]"
+              className="font-[Manrope]"
             >
               {isLoading ? "Uploading..." : "Save Photo"}
             </Button>
@@ -321,9 +330,12 @@ export function ProfilePhotoUpload({
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="font-[Newsreader]">Remove Your Photo?</DialogTitle>
+            <DialogDescription>
+              You can always upload a new one later.
+            </DialogDescription>
           </DialogHeader>
           
-          <p className="text-[#1b1c1a]/80 font-[Manrope] py-2">
+          <p className="text-foreground font-[Manrope] opacity-80 py-2">
             Your profile will display the default avatar after removing your photo.
           </p>
 
@@ -340,7 +352,7 @@ export function ProfilePhotoUpload({
               type="button"
               onClick={handleRemovePhoto}
               disabled={isLoading}
-              className="bg-red-600 hover:bg-red-700 text-white font-[Manrope]"
+              className="font-[Manrope]"
             >
               {isLoading ? "Removing..." : "Remove Photo"}
             </Button>

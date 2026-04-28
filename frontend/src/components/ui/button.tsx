@@ -19,13 +19,15 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         className={cn(
           "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium transition-all",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          "active:scale-[0.98]",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           "disabled:pointer-events-none disabled:opacity-50",
           
           // Variants
-          variant === "default" && "bg-primary text-primary-foreground hover:bg-primary/90",
-          variant === "outline" && "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-          variant === "ghost" && "hover:bg-accent hover:text-accent-foreground",
+          variant === "default" && "bs-cta shadow-none hover:brightness-[0.98]",
+          variant === "outline" &&
+            "border border-outline-variant/20 bg-transparent text-foreground hover:bg-surface-container-low hover:text-foreground",
+          variant === "ghost" && "bg-transparent text-foreground hover:bg-surface-container-low",
           
           // Sizes
           size === "default" && "h-10 px-4 py-2",

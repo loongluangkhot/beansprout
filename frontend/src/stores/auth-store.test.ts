@@ -56,9 +56,10 @@ describe("Auth Store Structure", () => {
 });
 
 describe("Logout API Function", () => {
-  it("should export logout function", async () => {
-    // Dynamic import to test the module
-    const { logout } = await import("@/lib/api/auth");
-    expect(typeof logout).toBe('function');
+  it("should export logout function", () => {
+    // Static import form keeps Jest configuration simple
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { logout } = require("@/lib/api/auth");
+    expect(typeof logout).toBe("function");
   });
 });

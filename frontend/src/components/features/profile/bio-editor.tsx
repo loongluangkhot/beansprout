@@ -5,8 +5,6 @@
 
 "use client";
 
-import { UseFormRegister, FieldErrors } from "react-hook-form";
-
 interface BioEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -29,23 +27,25 @@ export function BioEditor({ value, onChange, disabled, error }: BioEditorProps) 
         onChange={handleChange}
         disabled={disabled}
         placeholder="Tell other members about yourself..."
-        className={`w-full p-3 rounded-full border bg-white/80 font-[Manrope] text-[#1b1c1a] placeholder:text-[#1b1c1a]/40 focus:outline-none focus:ring-2 resize-none ${
-          error
-            ? "border-red-500 focus:ring-red-500/30"
-            : "border-[#4e6240]/20 focus:ring-[#4e6240]/30"
-        }`}
+        className={[
+          "w-full p-4 rounded-2xl border border-input bg-surface-container-high text-foreground placeholder:text-muted-foreground",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          "resize-none",
+          error ? "border-destructive" : "",
+        ].join(" ")}
         rows={4}
         aria-invalid={!!error}
       />
-      <p className={`text-right text-sm font-[Manrope] ${
-        value.length >= BIO_MAX_LENGTH 
-          ? "text-red-500" 
-          : "text-[#1b1c1a]/50"
-      }`}>
+      <p
+        className={[
+          "text-right text-sm",
+          value.length >= BIO_MAX_LENGTH ? "text-destructive" : "text-muted-foreground",
+        ].join(" ")}
+      >
         {value.length}/{BIO_MAX_LENGTH}
       </p>
       {error && (
-        <p className="text-sm text-red-500 font-[Manrope]">{error}</p>
+        <p className="text-sm text-destructive">{error}</p>
       )}
     </div>
   );

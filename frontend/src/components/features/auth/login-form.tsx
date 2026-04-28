@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 
 // Login form schema with Zod validation
 const loginSchema = z.object({
@@ -31,7 +31,7 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
-  const { login: loginUser, isLoading, error, clearError } = useAuth();
+  const { login: loginUser, isLoading, error } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const searchParams = useSearchParams();
@@ -55,9 +55,12 @@ export function LoginForm() {
   };
 
   return (
-    <Card className="w-full bg-white/80 backdrop-blur-sm border-surface-container-high shadow-lg">
-      <CardHeader className="space-y-2 text-center">
-        <CardTitle className="font-newsreader text-3xl text-foreground">
+    <Card className="w-full bs-panel bs-glass">
+      <CardHeader className="space-y-2 text-left pl-8 pr-6 pt-8">
+        <p className="text-xs uppercase tracking-[0.18em] text-foreground-muted font-manrope">
+          Welcome to beansprout
+        </p>
+        <CardTitle className="font-newsreader text-4xl text-foreground leading-tight">
           Welcome back
         </CardTitle>
         <CardDescription className="text-foreground-muted">
@@ -65,7 +68,7 @@ export function LoginForm() {
         </CardDescription>
       </CardHeader>
       
-      <CardContent>
+      <CardContent className="px-6 pb-8">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {/* Email Field */}
           <div className="space-y-2">
@@ -76,13 +79,12 @@ export function LoginForm() {
               id="email"
               type="email"
               placeholder="you@example.com"
-              className="rounded-full bg-surface-container border-surface-container-high px-4 py-6 
-                         focus:border-primary focus:ring-primary/20 transition-colors"
+              className="h-12"
               {...register("email")}
               aria-invalid={!!errors.email}
             />
             {errors.email && (
-              <p className="text-sm text-red-600 mt-1">
+              <p className="text-sm text-destructive mt-1">
                 {errors.email.message}
               </p>
             )}
@@ -98,8 +100,7 @@ export function LoginForm() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
-                className="rounded-full bg-surface-container border-surface-container-high px-4 py-6 
-                           pr-12 focus:border-primary focus:ring-primary/20 transition-colors"
+                className="h-12 pr-12"
                 {...register("password")}
                 aria-invalid={!!errors.password}
               />
@@ -110,12 +111,12 @@ export function LoginForm() {
                            hover:text-foreground transition-colors"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? "🙈" : "👁"}
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
             
             {errors.password && (
-              <p className="text-sm text-red-600 mt-1">
+              <p className="text-sm text-destructive mt-1">
                 {errors.password.message}
               </p>
             )}
@@ -129,8 +130,7 @@ export function LoginForm() {
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4 rounded border-surface-container-high text-primary 
-                         focus:ring-primary/20"
+              className="w-4 h-4 rounded border-input bg-transparent text-primary focus:ring-ring/20"
             />
             <Label htmlFor="rememberMe" className="text-foreground-muted text-sm cursor-pointer">
               Remember me
@@ -139,14 +139,14 @@ export function LoginForm() {
 
           {/* Logged Out Success Message */}
           {loggedOut && (
-            <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
+            <div className="p-3 rounded-lg bg-success-container text-foreground text-sm">
               Thanks for visiting! Come back soon.
             </div>
           )}
 
           {/* Error Message */}
           {error && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+            <div className="p-3 rounded-lg bg-error-container text-foreground text-sm">
               {error}
             </div>
           )}
@@ -155,9 +155,8 @@ export function LoginForm() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full py-6 rounded-full bg-primary text-primary-foreground font-medium
-                       hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed
-                       shadow-md hover:shadow-lg"
+            size="lg"
+            className="w-full h-12"
           >
             {isLoading ? (
               <span className="flex items-center gap-2">
@@ -170,8 +169,8 @@ export function LoginForm() {
           </Button>
 
           {/* Sign Up Link */}
-          <p className="text-center text-sm text-foreground-muted">
-            Don't have an account?{" "}
+          <p className="text-center text-sm text-foreground-muted pt-2">
+            Don&apos;t have an account?{" "}
             <a
               href="/register"
               className="text-primary hover:underline font-medium"

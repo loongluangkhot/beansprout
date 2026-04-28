@@ -8,7 +8,7 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
-import { register as registerApi, login as loginApi } from "@/lib/api/auth";
+import { register as registerApi } from "@/lib/api/auth";
 import type { RegisterRequest } from "@/types/auth";
 
 export function useAuth() {

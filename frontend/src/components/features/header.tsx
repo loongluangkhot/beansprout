@@ -16,9 +16,9 @@ export function Header() {
 
   if (!isAuthenticated) {
     return (
-      <header className="w-full bg-surface border-b border-surface-container-high">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+      <header className="fixed w-full top-0 z-30 px-3 pt-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 bs-glass rounded-full">
+          <div className="flex justify-between items-center h-14">
             <Link href="/" className="font-newsreader text-2xl text-foreground">
               beansprout
             </Link>
@@ -37,9 +37,9 @@ export function Header() {
   }
 
   return (
-    <header className="w-full bg-surface border-b border-surface-container-high">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+    <header className="fixed w-full top-0 z-30 px-3 pt-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 bs-glass rounded-full">
+        <div className="flex justify-between items-center h-14">
           <Link href="/" className="font-newsreader text-2xl text-foreground">
             beansprout
           </Link>
@@ -47,7 +47,7 @@ export function Header() {
           <div className="relative">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-container transition-colors"
+              className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-surface-container-low transition-colors"
               aria-label="Open user menu"
             >
               <span className="text-sm text-foreground">
@@ -69,13 +69,15 @@ export function Header() {
                   className="fixed inset-0 z-10" 
                   onClick={() => setIsMenuOpen(false)}
                 />
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-surface-container-high py-1 z-20">
-                  <div className="px-4 py-2 border-b border-surface-container-high">
-                    <p className="text-sm font-medium text-foreground">{user?.email}</p>
+                <div className="absolute right-0 mt-2 w-56 rounded-xl bg-surface-container-lowest py-1 z-20 bs-glass">
+                  <div className="px-4 py-2">
+                    <p className="text-xs text-foreground-muted">Signed in as</p>
+                    <p className="text-sm font-medium text-foreground truncate">{user?.email}</p>
                   </div>
+                  <div className="h-2" />
                   <button
                     onClick={logout}
-                    className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-surface-container transition-colors flex items-center gap-2"
+                    className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-surface-container-low transition-colors flex items-center gap-2 rounded-lg"
                   >
                     <svg 
                       className="w-4 h-4" 

@@ -62,5 +62,9 @@ Create a `.env` file in the backend directory:
 ```env
 DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/beansprout
 SECRET_KEY=your-secret-key-change-in-production
-CORS_ORIGINS=["http://localhost:3000"]
+CORS_ORIGINS=http://localhost:3000
+CORS_ALLOW_LOCALHOST_ANY_PORT=true
 ```
+
+- `CORS_ORIGINS` accepts a single origin or a comma-separated list.
+- `CORS_ALLOW_LOCALHOST_ANY_PORT=true` allows local frontend servers on `localhost`/`127.0.0.1` with any port during development.

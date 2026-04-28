@@ -7,6 +7,7 @@
 
 import { ReadingHistoryItem } from "@/lib/api/profile";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface ReadingHistoryProps {
   books: ReadingHistoryItem[];
@@ -39,21 +40,21 @@ export function ReadingHistory({ books, onChange, disabled, error }: ReadingHist
       {books.map((book, index) => (
         <div key={index} className="flex gap-2 items-start">
           <div className="flex-1 space-y-2">
-            <input
+            <Input
               type="text"
               value={book.title}
               onChange={(e) => updateBook(index, "title", e.target.value)}
               placeholder="Book title"
               disabled={disabled}
-              className="w-full px-3 py-2 rounded-full border border-[#4e6240]/20 bg-white/80 font-[Manrope] text-sm text-[#1b1c1a] placeholder:text-[#1b1c1a]/40 focus:outline-none focus:ring-2 focus:ring-[#4e6240]/30 disabled:opacity-50"
+              className="h-11"
             />
-            <input
+            <Input
               type="text"
               value={book.author}
               onChange={(e) => updateBook(index, "author", e.target.value)}
               placeholder="Author"
               disabled={disabled}
-              className="w-full px-3 py-2 rounded-full border border-[#4e6240]/20 bg-white/80 font-[Manrope] text-sm text-[#1b1c1a] placeholder:text-[#1b1c1a]/40 focus:outline-none focus:ring-2 focus:ring-[#4e6240]/30 disabled:opacity-50"
+              className="h-11"
             />
           </div>
           <Button
@@ -74,15 +75,15 @@ export function ReadingHistory({ books, onChange, disabled, error }: ReadingHist
           variant="outline"
           onClick={addBook}
           disabled={disabled}
-          className="w-full border-[#4e6240]/30 text-[#4e6240] font-[Manrope] disabled:opacity-50"
+          className="w-full"
         >
           + Add Book
         </Button>
       )}
       {error && (
-        <p className="text-sm text-red-500 font-[Manrope]">{error}</p>
+        <p className="text-sm text-destructive font-[Manrope]">{error}</p>
       )}
-      <p className="text-sm text-[#1b1c1a]/50 font-[Manrope]">
+      <p className="text-sm text-foreground-muted font-[Manrope]">
         {books.length}/{MAX_BOOKS} books
       </p>
     </div>
