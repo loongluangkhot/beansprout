@@ -124,7 +124,11 @@ class SeasonService:
         items = [SeasonBrowseItem.model_validate(dict(row)) for row in rows]
         return SeasonBrowseResult(items=items, total=total)
 
-    async def get_public_season_detail(self, season_id: str) -> SeasonDetailResult | None:
+    async def get_public_season_detail(
+        self,
+        season_id: str,
+        viewer_user_id: str | None = None,
+    ) -> SeasonDetailResult | None:
         detail_query = text(
             """
             SELECT
@@ -137,6 +141,7 @@ class SeasonService:
               s.cover_image_url AS cover_image_url,
               s.location_name AS location_name,
               s.location_url AS location_url,
+              s.max_members AS max_members,
               s.created_by_user_id::text AS creator_id,
               COALESCE(creator.display_name, creator.email) AS creator_name,
               creator.bio AS creator_bio,
@@ -203,6 +208,13 @@ class SeasonService:
         members = [SeasonProfileSummary.model_validate(dict(row)) for row in member_rows]
 
         item_data = dict(detail_row)
+        member_count = int(item_data.get("member_count", 0))
+        max_members = item_data.pop("max_members", None)
+        max_members_value = int(max_members) if max_members is not None else None
+        is_full = (
+            max_members_value is not None and member_count >= max_members_value
+        )
+
         creator_id = item_data.pop("creator_id", None)
         creator_name = item_data.pop("creator_name", None)
         creator_bio = item_data.pop("creator_bio", None)
@@ -216,8 +228,86 @@ class SeasonService:
             )
         else:
             item_data["creator"] = None
+
+        is_member = False
+        if viewer_user_id:
+            is_member = any(member.id == viewer_user_id for member in members)
+
+        item_data["is_member"] = is_member
+        item_data["is_full"] = is_full
+        item_data["can_join"] = not is_member and not is_full
         item_data["members"] = members
         item_data["meetups"] = meetups
 
         item = SeasonDetailItem.model_validate(item_data)
         return SeasonDetailResult(item=item)
+
+    async def join_season(self, season_id: str, user_id: str) -> dict | None:
+        join_query = text(
+            """
+            WITH locked_season AS (
+              SELECT s.id, s.max_members
+              FROM seasons s
+              WHERE s.id::text = :season_id
+                AND s.is_public = true
+                AND s.status = 'published'
+              FOR UPDATE
+            ),
+            existing_member AS (
+              SELECT 1 AS exists_flag
+              FROM season_members sm
+              JOIN locked_season ls ON ls.id = sm.season_id
+              WHERE sm.user_id::text = :user_id
+              LIMIT 1
+            ),
+            current_counts AS (
+              SELECT COALESCE(COUNT(sm.user_id), 0)::int AS member_count
+              FROM locked_season ls
+              LEFT JOIN season_members sm ON sm.season_id = ls.id
+            ),
+            inserted AS (
+              INSERT INTO season_members (season_id, user_id, joined_at)
+              SELECT ls.id, :user_id::uuid, NOW()
+              FROM locked_season ls
+              CROSS JOIN current_counts cc
+              WHERE NOT EXISTS (SELECT 1 FROM existing_member)
+                AND (ls.max_members IS NULL OR cc.member_count < ls.max_members)
+              RETURNING season_id
+            )
+            SELECT
+              ls.id::text AS season_id,
+              (EXISTS (SELECT 1 FROM inserted)) AS joined,
+              (
+                EXISTS (SELECT 1 FROM existing_member)
+                OR EXISTS (SELECT 1 FROM inserted)
+              ) AS is_member,
+              COALESCE((
+                SELECT COUNT(*)::int
+                FROM season_members sm
+                WHERE sm.season_id = ls.id
+              ), 0) AS member_count,
+              ls.max_members AS max_members,
+              CASE
+                WHEN ls.max_members IS NULL THEN false
+                ELSE (
+                  COALESCE((
+                    SELECT COUNT(*)::int
+                    FROM season_members sm
+                    WHERE sm.season_id = ls.id
+                  ), 0) >= ls.max_members
+                )
+              END AS is_full
+            FROM locked_season ls
+            """
+        )
+        result = await self.db.execute(
+            join_query,
+            {
+                "season_id": season_id,
+                "user_id": user_id,
+            },
+        )
+        row = result.mappings().first()
+        if row is None:
+            return None
+        return dict(row)

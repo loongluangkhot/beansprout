@@ -50,6 +50,9 @@ export interface SeasonDetailItem {
   member_count: number;
   location_name: string | null;
   location_url: string | null;
+  is_member: boolean;
+  can_join: boolean;
+  is_full: boolean;
   creator: SeasonProfileSummary | null;
   members: SeasonProfileSummary[];
   meetups: SeasonDetailMeetup[];
@@ -62,4 +65,18 @@ export interface SeasonDetailMeta {
 export interface SeasonDetailResponse {
   data: SeasonDetailItem;
   meta: SeasonDetailMeta;
+}
+
+export interface SeasonJoinData {
+  season_id: string;
+  joined: boolean;
+  is_member: boolean;
+  member_count: number;
+  max_members: number | null;
+  is_full: boolean;
+}
+
+export interface SeasonJoinResponse {
+  data: SeasonJoinData;
+  meta: Record<string, never>;
 }

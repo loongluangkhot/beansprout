@@ -36,6 +36,7 @@ export function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false);
   const searchParams = useSearchParams();
   const loggedOut = searchParams.get("logged_out") === "true";
+  const redirectPath = searchParams.get("redirect") || "/";
   
   const {
     register,
@@ -48,7 +49,7 @@ export function LoginForm() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      await loginUser(data.email, data.password);
+      await loginUser(data.email, data.password, redirectPath);
     } catch {
       // Error is handled by useAuth hook
     }

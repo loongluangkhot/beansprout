@@ -1,15 +1,18 @@
 import { getSeasonById } from "./seasons";
-import { apiRequest } from "./client";
+import { apiRequest, createAuthHeaders } from "./client";
 
 jest.mock("./client", () => ({
   apiRequest: jest.fn(),
+  createAuthHeaders: jest.fn(() => ({ "Content-Type": "application/json" })),
 }));
 
 const mockedApiRequest = apiRequest as jest.MockedFunction<typeof apiRequest>;
+const mockedCreateAuthHeaders = createAuthHeaders as jest.MockedFunction<typeof createAuthHeaders>;
 
 describe("getSeasonById", () => {
   beforeEach(() => {
     mockedApiRequest.mockReset();
+    mockedCreateAuthHeaders.mockClear();
   });
 
   it("encodes season id path parameters", async () => {
@@ -19,7 +22,10 @@ describe("getSeasonById", () => {
 
     expect(mockedApiRequest).toHaveBeenCalledWith(
       "/v1/seasons/season%2Falpha%3Fbeta",
-      { method: "GET" }
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }
     );
   });
 
@@ -29,4 +35,3 @@ describe("getSeasonById", () => {
     expect(mockedApiRequest).not.toHaveBeenCalled();
   });
 });
-

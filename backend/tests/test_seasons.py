@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.database import get_db
+from app.core.security import create_access_token
 from app.main import app
 from app.services.season_service import SeasonService
 
@@ -188,6 +189,95 @@ class TestSeasonDetailEndpoint:
         assert payload["status"] == 500
         assert payload["detail"] == "An error occurred while loading season detail"
 
+
+class TestSeasonJoinEndpoint:
+    def test_returns_401_when_missing_auth_header(self, client):
+        response = client.post(f"/api/v1/seasons/{SEASON_UUID}/join")
+        assert response.status_code == 401
+
+    def test_joins_season_when_authenticated(self, client, mock_db_session):
+        join_result = MagicMock()
+        mock_db_session.execute.side_effect = [join_result]
+        join_result.mappings.return_value.first.return_value = {
+            "season_id": SEASON_UUID,
+            "joined": True,
+            "member_count": 3,
+            "max_members": 10,
+            "is_full": False,
+            "is_member": True,
+        }
+
+        token = create_access_token({"sub": str(uuid4()), "email": "member@example.com"})
+        response = client.post(
+            f"/api/v1/seasons/{SEASON_UUID}/join",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["data"]["season_id"] == SEASON_UUID
+        assert payload["data"]["joined"] is True
+        assert payload["data"]["is_member"] is True
+
+    def test_returns_404_when_season_not_joinable(self, client, mock_db_session):
+        join_result = MagicMock()
+        mock_db_session.execute.side_effect = [join_result]
+        join_result.mappings.return_value.first.return_value = None
+
+        token = create_access_token({"sub": str(uuid4()), "email": "member@example.com"})
+        response = client.post(
+            f"/api/v1/seasons/{SEASON_UUID}/join",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 404
+        assert response.headers["content-type"].startswith("application/problem+json")
+
+    def test_returns_409_when_season_full(self, client, mock_db_session):
+        join_result = MagicMock()
+        mock_db_session.execute.side_effect = [join_result]
+        join_result.mappings.return_value.first.return_value = {
+            "season_id": SEASON_UUID,
+            "joined": False,
+            "member_count": 10,
+            "max_members": 10,
+            "is_full": True,
+            "is_member": False,
+        }
+
+        token = create_access_token({"sub": str(uuid4()), "email": "member@example.com"})
+        response = client.post(
+            f"/api/v1/seasons/{SEASON_UUID}/join",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 409
+        assert response.headers["content-type"].startswith("application/problem+json")
+
+    def test_returns_success_for_existing_member_idempotently(self, client, mock_db_session):
+        join_result = MagicMock()
+        mock_db_session.execute.side_effect = [join_result]
+        join_result.mappings.return_value.first.return_value = {
+            "season_id": SEASON_UUID,
+            "joined": False,
+            "member_count": 10,
+            "max_members": 10,
+            "is_full": True,
+            "is_member": True,
+        }
+
+        token = create_access_token({"sub": str(uuid4()), "email": "member@example.com"})
+        response = client.post(
+            f"/api/v1/seasons/{SEASON_UUID}/join",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["data"]["season_id"] == SEASON_UUID
+        assert payload["data"]["joined"] is False
+        assert payload["data"]["is_member"] is True
+
     def test_returns_problem_json_on_payload_validation_error(self, client, mock_db_session):
         detail_result = MagicMock()
         meetups_result = MagicMock()
@@ -273,3 +363,25 @@ async def test_service_detail_query_enforces_upcoming_and_ordering_contract():
 
     members_query = str(db.execute.call_args_list[2].args[0])
     assert "FROM season_members sm" in members_query
+
+
+@pytest.mark.asyncio
+async def test_service_join_season_query_uses_capacity_guard():
+    db = AsyncMock()
+    join_result = MagicMock()
+    db.execute.side_effect = [join_result]
+    join_result.mappings.return_value.first.return_value = {
+        "season_id": SEASON_UUID,
+        "joined": True,
+        "member_count": 1,
+        "max_members": 10,
+        "is_full": False,
+        "is_member": True,
+    }
+
+    service = SeasonService(db)
+    await service.join_season(season_id=SEASON_UUID, user_id=str(uuid4()))
+
+    join_query = str(db.execute.call_args_list[0].args[0])
+    assert "FOR UPDATE" in join_query
+    assert "INSERT INTO season_members" in join_query

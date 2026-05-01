@@ -11,6 +11,16 @@ import { useAuthStore } from "@/stores/auth-store";
 import { register as registerApi } from "@/lib/api/auth";
 import type { RegisterRequest } from "@/types/auth";
 
+function normalizeRedirectPath(redirectTo: string): string {
+  if (!redirectTo.startsWith("/")) {
+    return "/";
+  }
+  if (redirectTo.startsWith("//")) {
+    return "/";
+  }
+  return redirectTo;
+}
+
 export function useAuth() {
   const router = useRouter();
   const {
@@ -71,14 +81,13 @@ export function useAuth() {
    * Login with existing credentials
    */
   const handleLogin = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, redirectTo = "/") => {
       clearError();
       setLoading(true);
 
       try {
         await login(email, password);
-        // Redirect to home after successful login
-        router.push("/");
+        router.push(normalizeRedirectPath(redirectTo));
         return true;
       } catch (err) {
         // Error is already set in the store

@@ -48,15 +48,17 @@ describe("RegisterForm", () => {
   });
 
   describe("Password Validation", () => {
-    it("shows all requirements when user starts typing", () => {
+    it("shows all requirements when user starts typing", async () => {
       render(<RegisterForm />);
       
       const passwordInput = screen.getByLabelText(/^password$/i);
       fireEvent.change(passwordInput, { target: { value: "a" } });
       
-      expect(screen.getByText(/8\+ characters/i)).toBeInTheDocument();
-      expect(screen.getByText(/contains letter/i)).toBeInTheDocument();
-      expect(screen.getByText(/contains number/i)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText(/8\+ characters/i)).toBeInTheDocument();
+        expect(screen.getByText(/contains letter/i)).toBeInTheDocument();
+        expect(screen.getByText(/contains number/i)).toBeInTheDocument();
+      });
     });
 
     it("shows requirements as met when password is valid", async () => {
@@ -74,7 +76,7 @@ describe("RegisterForm", () => {
   });
 
   describe("Form Submission", () => {
-    it("disables submit button when requirements not met", () => {
+    it("disables submit button when requirements not met", async () => {
       render(<RegisterForm />);
       
       const emailInput = screen.getByLabelText(/email/i);
@@ -84,7 +86,9 @@ describe("RegisterForm", () => {
       fireEvent.change(emailInput, { target: { value: "test@example.com" } });
       fireEvent.change(passwordInput, { target: { value: "weak" } });
       
-      expect(submitButton).toBeDisabled();
+      await waitFor(() => {
+        expect(submitButton).toBeDisabled();
+      });
     });
 
     it("enables submit button when all requirements met", async () => {

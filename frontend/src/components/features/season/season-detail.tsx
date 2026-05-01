@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getSeasonById } from "@/lib/api/seasons";
+import { getSeasonById, joinSeason } from "@/lib/api/seasons";
+import { useAuthStore } from "@/stores/auth-store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -27,9 +29,25 @@ function formatMeetupDate(value: string): string {
 }
 
 export function SeasonDetail({ seasonId }: SeasonDetailProps) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const token = useAuthStore((state) => state.token);
+  const viewerCacheKey = token ?? "anon";
   const query = useQuery({
-    queryKey: ["season-detail", seasonId],
-    queryFn: () => getSeasonById(seasonId),
+    queryKey: ["season-detail", seasonId, viewerCacheKey],
+    queryFn: () => getSeasonById(seasonId, token),
+  });
+  const joinMutation = useMutation({
+    mutationFn: () => {
+      if (!token) {
+        throw new Error("Missing auth token");
+      }
+      return joinSeason(seasonId, token);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["season-detail", seasonId] });
+    },
   });
 
   if (query.isLoading) {
@@ -58,9 +76,34 @@ export function SeasonDetail({ seasonId }: SeasonDetailProps) {
   }
 
   const season = query.data.data;
+  const joinLabel = season.is_member ? "Joined" : season.is_full ? "Season Full" : "Join Season";
+  const joinDisabled =
+    joinMutation.isPending || season.is_member || season.is_full || !season.can_join;
+
+  const handleJoin = () => {
+    if (!isAuthenticated) {
+      const redirect = encodeURIComponent(`/seasons/${seasonId}`);
+      router.push(`/login?redirect=${redirect}`);
+      return;
+    }
+    if (!joinDisabled) {
+      joinMutation.mutate();
+    }
+  };
 
   return (
     <div className="space-y-4">
+      {joinMutation.isSuccess ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-4 right-4 z-50 rounded-xl bg-success-container px-4 py-3 shadow-md"
+        >
+          <p className="font-manrope text-xs text-foreground">
+            You joined this season successfully. RSVP options are now available.
+          </p>
+        </div>
+      ) : null}
       <Card className="bs-panel">
         <CardContent className="p-6 space-y-4">
           {season.cover_image_url ? (
@@ -87,6 +130,11 @@ export function SeasonDetail({ seasonId }: SeasonDetailProps) {
           <p className="font-manrope text-sm text-foreground">
             {season.description ?? "No description yet. Details will bloom soon."}
           </p>
+          <div className="space-y-2">
+            <Button type="button" onClick={handleJoin} disabled={joinDisabled}>
+              {joinLabel}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -195,7 +243,14 @@ export function SeasonDetail({ seasonId }: SeasonDetailProps) {
                   key={meetup.id}
                   className="rounded-xl bg-surface-container-low px-4 py-3 font-manrope text-sm text-foreground"
                 >
-                  {formatMeetupDate(meetup.starts_at)}
+                  <div className="flex items-center justify-between gap-3">
+                    <span>{formatMeetupDate(meetup.starts_at)}</span>
+                    {season.is_member ? (
+                      <Button type="button" variant="outline" size="sm">
+                        RSVP
+                      </Button>
+                    ) : null}
+                  </div>
                 </li>
               ))}
             </ul>

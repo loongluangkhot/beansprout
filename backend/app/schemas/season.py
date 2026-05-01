@@ -78,6 +78,9 @@ class SeasonDetailItem(BaseModel):
     member_count: int = 0
     location_name: str | None = None
     location_url: str | None = None
+    is_member: bool = False
+    can_join: bool = False
+    is_full: bool = False
     creator: "SeasonProfileSummary | None" = None
     members: list["SeasonProfileSummary"] = Field(default_factory=list)
     meetups: list[SeasonDetailMeetup] = Field(default_factory=list)
@@ -102,3 +105,17 @@ class SeasonDetailResult(BaseModel):
                 "meetup_count": len(self.item.meetups),
             },
         }
+
+
+class SeasonJoinData(BaseModel):
+    season_id: str
+    joined: bool
+    is_member: bool
+    member_count: int = Field(ge=0)
+    max_members: int | None = Field(default=None, ge=1)
+    is_full: bool
+
+
+class SeasonJoinResponse(BaseModel):
+    data: SeasonJoinData
+    meta: dict[str, Any] = Field(default_factory=dict)

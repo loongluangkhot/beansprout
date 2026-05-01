@@ -1,8 +1,9 @@
-import { apiRequest } from "./client";
+import { apiRequest, createAuthHeaders } from "./client";
 import type {
   SeasonBrowseFilters,
   SeasonBrowseResponse,
   SeasonDetailResponse,
+  SeasonJoinResponse,
 } from "@/types/season";
 
 export type {
@@ -13,6 +14,8 @@ export type {
   SeasonDetailItem,
   SeasonDetailMeta,
   SeasonDetailResponse,
+  SeasonJoinData,
+  SeasonJoinResponse,
 } from "@/types/season";
 
 const SEASONS_ENDPOINT = "/v1/seasons";
@@ -45,7 +48,10 @@ export function getSeasons(
   );
 }
 
-export function getSeasonById(seasonId: string): Promise<SeasonDetailResponse> {
+export function getSeasonById(
+  seasonId: string,
+  token?: string | null
+): Promise<SeasonDetailResponse> {
   const normalizedSeasonId = seasonId.trim();
   if (!normalizedSeasonId) {
     throw new Error("seasonId is required");
@@ -55,5 +61,21 @@ export function getSeasonById(seasonId: string): Promise<SeasonDetailResponse> {
 
   return apiRequest<SeasonDetailResponse>(`${SEASONS_ENDPOINT}/${encodedSeasonId}`, {
     method: "GET",
+    headers: createAuthHeaders(token),
+  });
+}
+
+export function joinSeason(seasonId: string, token: string): Promise<SeasonJoinResponse> {
+  const normalizedSeasonId = seasonId.trim();
+  if (!normalizedSeasonId) {
+    throw new Error("seasonId is required");
+  }
+  if (!token) {
+    throw new Error("token is required");
+  }
+  const encodedSeasonId = encodeURIComponent(normalizedSeasonId);
+  return apiRequest<SeasonJoinResponse>(`${SEASONS_ENDPOINT}/${encodedSeasonId}/join`, {
+    method: "POST",
+    headers: createAuthHeaders(token),
   });
 }
