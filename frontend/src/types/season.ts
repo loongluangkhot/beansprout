@@ -32,6 +32,13 @@ export interface SeasonDetailMeetup {
   starts_at: string;
 }
 
+export interface SeasonProfileSummary {
+  id: string;
+  name: string;
+  bio: string | null;
+  profile_photo_url: string | null;
+}
+
 export interface SeasonDetailItem {
   id: string;
   title: string;
@@ -43,6 +50,8 @@ export interface SeasonDetailItem {
   member_count: number;
   location_name: string | null;
   location_url: string | null;
+  creator: SeasonProfileSummary | null;
+  members: SeasonProfileSummary[];
   meetups: SeasonDetailMeetup[];
 }
 

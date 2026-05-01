@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.schemas.profile import ProfileUpdate, ProfileResponse
+from app.schemas.profile import ProfileUpdate, ProfileResponse, PublicProfileResponse
 from app.services.profile_service import ProfileService, ProfileNotFoundError
 from app.utils.image_utils import (
     InvalidImageTypeError,
@@ -138,6 +138,49 @@ def get_current_user_id(request: Request) -> UUID:
                     "detail": "Invalid token payload"
                 }
             }
+        )
+
+
+@router.get(
+    "/{user_id}/profile",
+    response_model=PublicProfileResponse,
+    summary="Get public user profile",
+    description="Retrieve public profile details for a user by ID.",
+)
+async def get_public_profile(
+    user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    profile_service = ProfileService(db)
+
+    try:
+        profile = await profile_service.get_public_profile(user_id)
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"data": profile.model_dump(mode="json")},
+        )
+    except ProfileNotFoundError as e:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Not Found",
+                "status": 404,
+                "detail": e.message,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error getting public profile: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Internal Server Error",
+                "status": 500,
+                "detail": "An error occurred while retrieving public profile",
+            },
         )
 
 

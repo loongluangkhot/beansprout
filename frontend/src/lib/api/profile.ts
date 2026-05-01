@@ -23,8 +23,20 @@ export interface ProfileData {
   updated_at: string;
 }
 
+export interface PublicProfileData {
+  id: string;
+  display_name?: string;
+  bio?: string;
+  favorite_genres?: string[];
+  profile_photo_url?: string;
+}
+
 export interface ProfileResponse {
   data: ProfileData;
+}
+
+export interface PublicProfileResponse {
+  data: PublicProfileData;
 }
 
 export interface ProfileUpdateRequest {
@@ -84,5 +96,20 @@ export async function deleteProfilePhoto(token: string): Promise<ProfileResponse
   return apiRequest<ProfileResponse>(`${PROFILE_ENDPOINT}/me/photo`, {
     method: "DELETE",
     headers: createAuthHeaders(token),
+  });
+}
+
+/**
+ * Get a user's public profile
+ */
+export async function getPublicProfile(userId: string): Promise<PublicProfileResponse> {
+  const normalizedUserId = userId.trim();
+  if (!normalizedUserId) {
+    throw new Error("userId is required");
+  }
+
+  const encodedUserId = encodeURIComponent(normalizedUserId);
+  return apiRequest<PublicProfileResponse>(`${PROFILE_ENDPOINT}/${encodedUserId}/profile`, {
+    method: "GET",
   });
 }

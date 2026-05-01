@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
 import { getSeasonById } from "@/lib/api/seasons";
@@ -86,6 +87,77 @@ export function SeasonDetail({ seasonId }: SeasonDetailProps) {
           <p className="font-manrope text-sm text-foreground">
             {season.description ?? "No description yet. Details will bloom soon."}
           </p>
+        </CardContent>
+      </Card>
+
+      <Card className="bs-panel">
+        <CardContent className="p-6 space-y-4">
+          <h2 className="font-newsreader text-2xl text-foreground">Creator</h2>
+          {season.creator ? (
+            <Link
+              href={`/profile/${encodeURIComponent(season.creator.id)}`}
+              className="flex items-start gap-3 rounded-xl bg-surface-container-low px-4 py-3 min-h-11"
+              aria-label={`View creator profile: ${season.creator.name}`}
+            >
+              {season.creator.profile_photo_url ? (
+                <img
+                  src={season.creator.profile_photo_url}
+                  alt={`${season.creator.name} profile photo`}
+                  className="h-11 w-11 rounded-full object-cover"
+                />
+              ) : (
+                <div className="h-11 w-11 rounded-full bg-surface-container-high flex items-center justify-center">
+                  <span className="font-manrope text-xs text-foreground-muted">No photo</span>
+                </div>
+              )}
+              <div className="space-y-1">
+                <p className="font-manrope text-sm text-foreground">{season.creator.name}</p>
+                <p className="font-manrope text-xs text-foreground-muted">
+                  {season.creator.bio ?? "No bio shared yet. Their story is still unfolding."}
+                </p>
+              </div>
+            </Link>
+          ) : (
+            <p className="font-manrope text-sm text-foreground-muted">
+              Creator details will be shared soon.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="bs-panel">
+        <CardContent className="p-6 space-y-3">
+          <h2 className="font-newsreader text-2xl text-foreground">Members</h2>
+          {(season.members ?? []).length > 0 ? (
+            <ul className="space-y-2">
+              {(season.members ?? []).map((member) => (
+                <li key={member.id}>
+                  <Link
+                    href={`/profile/${encodeURIComponent(member.id)}`}
+                    className="flex items-center gap-3 rounded-xl bg-surface-container-low px-4 py-3 min-h-11"
+                    aria-label={`View member profile: ${member.name}`}
+                  >
+                    {member.profile_photo_url ? (
+                      <img
+                        src={member.profile_photo_url}
+                        alt={`${member.name} profile photo`}
+                        className="h-11 w-11 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-11 w-11 rounded-full bg-surface-container-high flex items-center justify-center">
+                        <span className="font-manrope text-xs text-foreground-muted">No photo</span>
+                      </div>
+                    )}
+                    <p className="font-manrope text-sm text-foreground">{member.name}</p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="font-manrope text-sm text-foreground-muted">
+              No members have joined yet.
+            </p>
+          )}
         </CardContent>
       </Card>
 

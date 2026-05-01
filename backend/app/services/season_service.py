@@ -10,6 +10,7 @@ from app.schemas.season import (
     SeasonBrowseResult,
     SeasonDetailItem,
     SeasonDetailMeetup,
+    SeasonProfileSummary,
     SeasonDetailResult,
 )
 
@@ -136,8 +137,14 @@ class SeasonService:
               s.cover_image_url AS cover_image_url,
               s.location_name AS location_name,
               s.location_url AS location_url,
+              s.created_by_user_id::text AS creator_id,
+              COALESCE(creator.display_name, creator.email) AS creator_name,
+              creator.bio AS creator_bio,
+              creator.profile_photo_url AS creator_profile_photo_url,
               COUNT(sm.user_id)::int AS member_count
             FROM seasons s
+            LEFT JOIN users creator
+              ON creator.id = s.created_by_user_id
             LEFT JOIN season_members sm
               ON sm.season_id = s.id
             WHERE s.id::text = :season_id
@@ -145,7 +152,25 @@ class SeasonService:
               AND s.status = 'published'
             GROUP BY
               s.id, s.title, s.theme, s.description, s.book_title, s.book_author,
-              s.cover_image_url, s.location_name, s.location_url
+              s.cover_image_url, s.location_name, s.location_url,
+              s.created_by_user_id, creator.display_name, creator.email, creator.bio, creator.profile_photo_url
+            """
+        )
+        members_query = text(
+            """
+            SELECT
+              u.id::text AS id,
+              COALESCE(u.display_name, u.email) AS name,
+              u.profile_photo_url AS profile_photo_url
+            FROM season_members sm
+            JOIN users u
+              ON u.id = sm.user_id
+            JOIN seasons s
+              ON s.id = sm.season_id
+            WHERE s.id::text = :season_id
+              AND s.is_public = true
+              AND s.status = 'published'
+            ORDER BY COALESCE(u.display_name, u.email) ASC
             """
         )
         meetups_query = text(
@@ -173,7 +198,25 @@ class SeasonService:
         meetup_rows = meetups_result.mappings().all()
         meetups = [SeasonDetailMeetup.model_validate(dict(row)) for row in meetup_rows]
 
+        members_result = await self.db.execute(members_query, {"season_id": season_id})
+        member_rows = members_result.mappings().all()
+        members = [SeasonProfileSummary.model_validate(dict(row)) for row in member_rows]
+
         item_data = dict(detail_row)
+        creator_id = item_data.pop("creator_id", None)
+        creator_name = item_data.pop("creator_name", None)
+        creator_bio = item_data.pop("creator_bio", None)
+        creator_profile_photo_url = item_data.pop("creator_profile_photo_url", None)
+        if creator_id and creator_name:
+            item_data["creator"] = SeasonProfileSummary(
+                id=creator_id,
+                name=creator_name,
+                bio=creator_bio,
+                profile_photo_url=creator_profile_photo_url,
+            )
+        else:
+            item_data["creator"] = None
+        item_data["members"] = members
         item_data["meetups"] = meetups
 
         item = SeasonDetailItem.model_validate(item_data)

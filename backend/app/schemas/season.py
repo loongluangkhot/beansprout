@@ -56,6 +56,15 @@ class SeasonDetailMeetup(BaseModel):
     starts_at: datetime
 
 
+class SeasonProfileSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    bio: str | None = None
+    profile_photo_url: str | None = None
+
+
 class SeasonDetailItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -69,6 +78,8 @@ class SeasonDetailItem(BaseModel):
     member_count: int = 0
     location_name: str | None = None
     location_url: str | None = None
+    creator: "SeasonProfileSummary | None" = None
+    members: list["SeasonProfileSummary"] = Field(default_factory=list)
     meetups: list[SeasonDetailMeetup] = Field(default_factory=list)
 
 

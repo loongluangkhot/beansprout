@@ -8,7 +8,11 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 from datetime import datetime
+from fastapi.testclient import TestClient
+from sqlalchemy.exc import SQLAlchemyError
 
+from app.core.database import get_db
+from app.main import app
 from app.schemas.profile import ProfileUpdate, ProfileResponse, ReadingHistoryItem
 from app.services.profile_service import ProfileService, ProfileNotFoundError
 
@@ -164,3 +168,63 @@ class TestProfileService:
         
         assert result.bio == "New bio"
         mock_db.commit.assert_called_once()
+
+
+@pytest.fixture
+def mock_db_session():
+    return AsyncMock()
+
+
+@pytest.fixture
+def client(mock_db_session):
+    async def override_get_db():
+        yield mock_db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
+    yield client
+    app.dependency_overrides.clear()
+
+
+class TestPublicProfileEndpoint:
+    def test_returns_public_profile_data(self, client, mock_db_session):
+        mock_result = MagicMock()
+        mock_user = MagicMock()
+        mock_user.id = uuid4()
+        mock_user.display_name = "Public Reader"
+        mock_user.bio = "Loves memoirs and reflective fiction."
+        mock_user.favorite_genres = ["Fiction", "Memoir"]
+        mock_user.profile_photo_url = "https://example.com/avatar.jpg"
+        mock_result.scalar_one_or_none.return_value = mock_user
+        mock_db_session.execute.return_value = mock_result
+
+        response = client.get(f"/api/v1/users/{mock_user.id}/profile")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["data"]["id"] == str(mock_user.id)
+        assert payload["data"]["display_name"] == "Public Reader"
+        assert "email" not in payload["data"]
+        assert "reading_history" not in payload["data"]
+
+    def test_returns_404_when_public_profile_missing(self, client, mock_db_session):
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db_session.execute.return_value = mock_result
+        missing_id = uuid4()
+
+        response = client.get(f"/api/v1/users/{missing_id}/profile")
+
+        assert response.status_code == 404
+        assert response.headers["content-type"].startswith("application/problem+json")
+        payload = response.json()
+        assert payload["title"] == "Not Found"
+
+    def test_returns_500_on_public_profile_db_error(self, client, mock_db_session):
+        mock_db_session.execute.side_effect = SQLAlchemyError("db boom")
+        user_id = uuid4()
+
+        response = client.get(f"/api/v1/users/{user_id}/profile")
+
+        assert response.status_code == 500
+        assert response.headers["content-type"].startswith("application/problem+json")

@@ -101,3 +101,21 @@ class ProfileResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PublicProfileData(BaseModel):
+    """Schema for public profile data visible to other members."""
+
+    id: UUID
+    display_name: Optional[str] = None
+    bio: Optional[str] = None
+    favorite_genres: Optional[list[str]] = None
+    profile_photo_url: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class PublicProfileResponse(BaseModel):
+    """Schema for public profile response payload."""
+
+    data: PublicProfileData

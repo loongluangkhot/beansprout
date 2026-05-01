@@ -17,7 +17,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
-from app.schemas.profile import ProfileUpdate, ProfileResponse, ReadingHistoryItem
+from app.schemas.profile import (
+    ProfileUpdate,
+    ProfileResponse,
+    PublicProfileData,
+    ReadingHistoryItem,
+)
 from app.utils.image_utils import (
     validate_image,
     get_image_extension,
@@ -96,6 +101,25 @@ class ProfileService:
             profile_photo_url=user.profile_photo_url,
             created_at=user.created_at,
             updated_at=user.updated_at
+        )
+
+    async def get_public_profile(self, user_id: UUID) -> PublicProfileData:
+        """
+        Retrieve public profile fields for another user.
+        """
+        stmt = select(User).where(User.id == user_id)
+        result = await self.db.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise ProfileNotFoundError(user_id)
+
+        return PublicProfileData(
+            id=user.id,
+            display_name=user.display_name,
+            bio=user.bio,
+            favorite_genres=user.favorite_genres,
+            profile_photo_url=user.profile_photo_url,
         )
 
     async def update_user_profile(

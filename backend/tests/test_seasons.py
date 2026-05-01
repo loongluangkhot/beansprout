@@ -111,16 +111,21 @@ class TestSeasonDetailEndpoint:
     def test_returns_season_detail_with_schedule_and_location(self, client, mock_db_session):
         detail_result = MagicMock()
         meetups_result = MagicMock()
-        mock_db_session.execute.side_effect = [detail_result, meetups_result]
+        members_result = MagicMock()
+        mock_db_session.execute.side_effect = [detail_result, meetups_result, members_result]
 
         detail_result.mappings.return_value.first.return_value = {
-                "id": SEASON_UUID,
+            "id": SEASON_UUID,
             "title": "Spring Reads",
             "theme": "Contemporary Fiction",
             "description": "A warm reading circle for reflective readers.",
             "book_title": "Tomorrow, and Tomorrow, and Tomorrow",
             "book_author": "Gabrielle Zevin",
             "cover_image_url": "https://example.com/cover.jpg",
+            "creator_id": str(uuid4()),
+            "creator_name": "Season Host",
+            "creator_bio": "I host reflective, welcoming reading circles.",
+            "creator_profile_photo_url": "https://example.com/host.jpg",
             "member_count": 12,
             "location_name": "Bean & Leaf Cafe",
             "location_url": "https://maps.example.com/bean-leaf",
@@ -135,6 +140,10 @@ class TestSeasonDetailEndpoint:
                 "starts_at": "2026-06-08T10:00:00Z",
             },
         ]
+        members_result.mappings.return_value.all.return_value = [
+            {"id": str(uuid4()), "name": "Member One", "profile_photo_url": "https://example.com/m1.jpg"},
+            {"id": str(uuid4()), "name": "Member Two", "profile_photo_url": None},
+        ]
 
         response = client.get(f"/api/v1/seasons/{SEASON_UUID}")
 
@@ -143,6 +152,9 @@ class TestSeasonDetailEndpoint:
         assert payload["data"]["id"] == SEASON_UUID
         assert payload["data"]["location_name"] == "Bean & Leaf Cafe"
         assert payload["data"]["location_url"] == "https://maps.example.com/bean-leaf"
+        assert payload["data"]["creator"]["name"] == "Season Host"
+        assert payload["data"]["creator"]["bio"] == "I host reflective, welcoming reading circles."
+        assert len(payload["data"]["members"]) == 2
         assert len(payload["data"]["meetups"]) == 2
         assert payload["meta"]["meetup_count"] == 2
 
@@ -179,7 +191,8 @@ class TestSeasonDetailEndpoint:
     def test_returns_problem_json_on_payload_validation_error(self, client, mock_db_session):
         detail_result = MagicMock()
         meetups_result = MagicMock()
-        mock_db_session.execute.side_effect = [detail_result, meetups_result]
+        members_result = MagicMock()
+        mock_db_session.execute.side_effect = [detail_result, meetups_result, members_result]
 
         detail_result.mappings.return_value.first.return_value = {
             "id": SEASON_UUID,
@@ -189,6 +202,10 @@ class TestSeasonDetailEndpoint:
             "book_title": "Tomorrow, and Tomorrow, and Tomorrow",
             "book_author": "Gabrielle Zevin",
             "cover_image_url": "https://example.com/cover.jpg",
+            "creator_id": str(uuid4()),
+            "creator_name": "Season Host",
+            "creator_bio": "I host reflective, welcoming reading circles.",
+            "creator_profile_photo_url": "https://example.com/host.jpg",
             "member_count": 12,
             "location_name": "Bean & Leaf Cafe",
             "location_url": "https://maps.example.com/bean-leaf",
@@ -196,6 +213,7 @@ class TestSeasonDetailEndpoint:
         meetups_result.mappings.return_value.all.return_value = [
             {"id": "meetup-1", "starts_at": "not-a-datetime"}
         ]
+        members_result.mappings.return_value.all.return_value = []
 
         response = client.get(f"/api/v1/seasons/{SEASON_UUID}")
 
@@ -225,7 +243,8 @@ async def test_service_detail_query_enforces_upcoming_and_ordering_contract():
     db = AsyncMock()
     detail_result = MagicMock()
     meetups_result = MagicMock()
-    db.execute.side_effect = [detail_result, meetups_result]
+    members_result = MagicMock()
+    db.execute.side_effect = [detail_result, meetups_result, members_result]
     detail_result.mappings.return_value.first.return_value = {
         "id": SEASON_UUID,
         "title": "Spring Reads",
@@ -234,11 +253,16 @@ async def test_service_detail_query_enforces_upcoming_and_ordering_contract():
         "book_title": "Tomorrow",
         "book_author": "Gabrielle Zevin",
         "cover_image_url": "https://example.com/cover.jpg",
+        "creator_id": str(uuid4()),
+        "creator_name": "Season Host",
+        "creator_bio": "I host reflective, welcoming reading circles.",
+        "creator_profile_photo_url": "https://example.com/host.jpg",
         "location_name": "Bean & Leaf Cafe",
         "location_url": "https://maps.example.com/bean-leaf",
         "member_count": 5,
     }
     meetups_result.mappings.return_value.all.return_value = []
+    members_result.mappings.return_value.all.return_value = []
 
     service = SeasonService(db)
     await service.get_public_season_detail(SEASON_UUID)
@@ -246,3 +270,6 @@ async def test_service_detail_query_enforces_upcoming_and_ordering_contract():
     meetups_query = str(db.execute.call_args_list[1].args[0])
     assert "m.starts_at >= NOW()" in meetups_query
     assert "ORDER BY m.starts_at ASC" in meetups_query
+
+    members_query = str(db.execute.call_args_list[2].args[0])
+    assert "FROM season_members sm" in members_query

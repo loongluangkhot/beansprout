@@ -37,6 +37,16 @@ describe("SeasonDetail", () => {
         member_count: 12,
         location_name: "Bean & Leaf Cafe",
         location_url: "https://maps.example.com/bean-leaf",
+        creator: {
+          id: "creator-1",
+          name: "Season Host",
+          bio: "I host reflective, welcoming reading circles.",
+          profile_photo_url: "https://example.com/host.jpg",
+        },
+        members: [
+          { id: "member-1", name: "Member One", profile_photo_url: "https://example.com/m1.jpg" },
+          { id: "member-2", name: "Member Two", profile_photo_url: null },
+        ],
         meetups: [
           { id: "meetup-1", starts_at: "2026-06-01T10:00:00Z" },
           { id: "meetup-2", starts_at: "2026-06-08T10:00:00Z" },
@@ -51,6 +61,15 @@ describe("SeasonDetail", () => {
       expect(screen.getByRole("heading", { name: /Spring Reads/i })).toBeInTheDocument();
       expect(screen.getByText(/Gabrielle Zevin/)).toBeInTheDocument();
       expect(screen.getByText(/Bean & Leaf Cafe/)).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /View creator profile: Season Host/i })).toHaveAttribute(
+        "href",
+        "/profile/creator-1"
+      );
+      expect(screen.getByText(/I host reflective, welcoming reading circles/i)).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /View member profile: Member One/i })).toHaveAttribute(
+        "href",
+        "/profile/member-1"
+      );
       expect(screen.getByRole("link", { name: /Open location link/i })).toHaveAttribute(
         "href",
         "https://maps.example.com/bean-leaf"
@@ -71,6 +90,8 @@ describe("SeasonDetail", () => {
         member_count: 0,
         location_name: null,
         location_url: null,
+        creator: null,
+        members: [],
         meetups: [],
       },
       meta: { meetup_count: 0 },
@@ -81,6 +102,8 @@ describe("SeasonDetail", () => {
     await waitFor(() => {
       expect(screen.getByText(/No description yet. Details will bloom soon/i)).toBeInTheDocument();
       expect(screen.getByText(/Location details will be shared soon/i)).toBeInTheDocument();
+      expect(screen.getByText(/Creator details will be shared soon/i)).toBeInTheDocument();
+      expect(screen.getByText(/No members have joined yet/i)).toBeInTheDocument();
       expect(screen.getByText(/No meetups scheduled yet/i)).toBeInTheDocument();
     });
   });
