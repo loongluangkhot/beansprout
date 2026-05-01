@@ -11,7 +11,7 @@ from threading import Lock
 from typing import Any
 
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+from pwdlib import PasswordHash
 
 from app.config import settings
 
@@ -22,8 +22,8 @@ SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
-# Password context using bcrypt
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hasher using recommended modern settings (Argon2id)
+password_hash = PasswordHash.recommended()
 
 
 # Token blocklist for logout functionality
@@ -84,31 +84,29 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Verify a plain password against a hashed password.
     
-    Note: passlib's bcrypt implementation uses constant-time comparison
-    internally to prevent timing attacks. This is the recommended approach
-    for password verification.
+    Note: verification is handled by pwdlib's secure implementation.
 
     Args:
         plain_password: The plain text password to verify
-        hashed_password: The bcrypt hashed password
+        hashed_password: The stored password hash
 
     Returns:
         True if password matches, False otherwise
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    return password_hash.verify(plain_password, hashed_password)
 
 
 def hash_password(password: str) -> str:
     """
-    Hash a password using bcrypt.
+    Hash a password using the configured hasher.
 
     Args:
         password: The plain text password to hash
 
     Returns:
-        The bcrypt hashed password
+        The hashed password
     """
-    return pwd_context.hash(password)
+    return password_hash.hash(password)
 
 
 def validate_password_strength(password: str) -> tuple[bool, str | None]:

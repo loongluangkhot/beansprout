@@ -48,8 +48,8 @@ export function useAuth() {
       try {
         const response = await registerApi(data);
         setAuth(response.data.user, response.data.access_token);
-        // Redirect to home after successful registration
-        router.push("/");
+        // Redirect to season library after successful registration
+        router.push("/seasons");
         return response;
       } catch (err) {
         // Handle API errors
@@ -81,7 +81,7 @@ export function useAuth() {
    * Login with existing credentials
    */
   const handleLogin = useCallback(
-    async (email: string, password: string, redirectTo = "/") => {
+    async (email: string, password: string, redirectTo = "/seasons") => {
       clearError();
       setLoading(true);
 

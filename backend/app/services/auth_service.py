@@ -131,7 +131,7 @@ class AuthService:
             password_hash=password_hash
         )
 
-        await self.db.add(new_user)
+        self.db.add(new_user)
         await self.db.commit()
         await self.db.refresh(new_user)
 

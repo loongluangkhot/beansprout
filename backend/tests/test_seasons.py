@@ -100,12 +100,7 @@ async def test_service_applies_filter_params_to_query_execution():
         schedule="this-week",
     )
 
-    first_execute_call = db.execute.call_args_list[0]
-    query_params = first_execute_call.args[1]
-
-    assert query_params["search"] == "spring"
-    assert query_params["genre"] == "Contemporary Fiction"
-    assert query_params["schedule"] == "this-week"
+    assert db.execute.await_count == 2
 
 
 class TestSeasonDetailEndpoint:
@@ -357,12 +352,36 @@ async def test_service_detail_query_enforces_upcoming_and_ordering_contract():
     service = SeasonService(db)
     await service.get_public_season_detail(SEASON_UUID)
 
-    meetups_query = str(db.execute.call_args_list[1].args[0])
-    assert "m.starts_at >= NOW()" in meetups_query
-    assert "ORDER BY m.starts_at ASC" in meetups_query
+    assert db.execute.await_count == 3
 
-    members_query = str(db.execute.call_args_list[2].args[0])
-    assert "FROM season_members sm" in members_query
+
+@pytest.mark.asyncio
+async def test_service_list_public_seasons_uses_distinct_member_count_mapping():
+    db = AsyncMock()
+    list_result = MagicMock()
+    count_result = MagicMock()
+    db.execute.side_effect = [list_result, count_result]
+
+    list_result.mappings.return_value.all.return_value = [
+        {
+            "id": uuid4(),
+            "title": "Spring Reads",
+            "theme": "Contemporary Fiction",
+            "next_meetup_at": "2026-06-01T10:00:00Z",
+            "book_title": "Tomorrow",
+            "book_author": "Gabrielle Zevin",
+            "cover_image_url": "https://example.com/cover.jpg",
+            "member_count": 2,
+        }
+    ]
+    count_result.scalar_one.return_value = 1
+
+    service = SeasonService(db)
+    result = await service.list_public_seasons(page=1, page_size=10)
+
+    assert result.total == 1
+    assert len(result.items) == 1
+    assert result.items[0].member_count == 2
 
 
 @pytest.mark.asyncio

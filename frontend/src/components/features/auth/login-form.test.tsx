@@ -142,4 +142,35 @@ describe("LoginForm", () => {
       expect(submitButton).toBeDisabled();
     });
   });
+
+  describe("Redirect Behavior", () => {
+    it("uses /seasons as default redirect when query param is missing", async () => {
+      const loginMock = jest.fn().mockResolvedValue(undefined);
+      mockUseAuth.mockReturnValue({
+        login: loginMock,
+        isLoading: false,
+        error: null,
+        clearError: jest.fn(),
+      });
+
+      render(<LoginForm />);
+
+      fireEvent.change(screen.getByLabelText(/email/i), {
+        target: { value: "reader@example.com" },
+      });
+      fireEvent.change(screen.getByLabelText(/^password$/i), {
+        target: { value: "SecurePass123" },
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+
+      await waitFor(() => {
+        expect(loginMock).toHaveBeenCalledWith(
+          "reader@example.com",
+          "SecurePass123",
+          "/seasons"
+        );
+      });
+    });
+  });
 });

@@ -9,17 +9,13 @@ from datetime import UTC, datetime
 
 from sqlalchemy import Column, DateTime, Index, String, func
 from sqlalchemy.dialects.postgresql import JSON, UUID
-from sqlalchemy.orm import DeclarativeBase
+
+from app.models.base import Base
 
 
 def utc_now():
     """Return current UTC datetime (timezone-aware)."""
     return datetime.now(UTC)
-
-
-class Base(DeclarativeBase):
-    """Base class for all SQLAlchemy models."""
-    pass
 
 
 class User(Base):

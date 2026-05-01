@@ -36,7 +36,7 @@ export function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false);
   const searchParams = useSearchParams();
   const loggedOut = searchParams.get("logged_out") === "true";
-  const redirectPath = searchParams.get("redirect") || "/";
+  const redirectPath = searchParams.get("redirect") || "/seasons";
   
   const {
     register,

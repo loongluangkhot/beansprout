@@ -3,9 +3,27 @@
  * Landing page for the beansprout application
  */
 
+"use client";
+
+import { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/stores/auth-store";
 
 export default function HomePage() {
+  const router = useRouter();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace("/seasons");
+    }
+  }, [isAuthenticated, router]);
+
+  if (isAuthenticated) {
+    return null;
+  }
+
   return (
     <main className="min-h-screen bg-surface flex flex-col items-center justify-center p-4">
       <div className="text-center max-w-2xl">

@@ -46,7 +46,7 @@ class TestPasswordHashing:
         hash1 = hash_password(password)
         hash2 = hash_password(password)
         
-        # Due to bcrypt salting, hashes should be different
+        # Due to per-hash random salt, hashes should be different
         assert hash1 != hash2
     
     def test_verify_password_correct(self):
@@ -187,7 +187,13 @@ class TestAuthService:
     @pytest.fixture
     def mock_db(self):
         """Create a mock database session."""
-        return AsyncMock()
+        db = MagicMock()
+        db.execute = AsyncMock()
+        db.commit = AsyncMock()
+        db.refresh = AsyncMock()
+        db.rollback = AsyncMock()
+        db.add = MagicMock()
+        return db
     
     @pytest.fixture
     def auth_service(self, mock_db):
@@ -303,7 +309,13 @@ class TestAuthServiceLogin:
     @pytest.fixture
     def mock_db(self):
         """Create a mock database session."""
-        return AsyncMock()
+        db = MagicMock()
+        db.execute = AsyncMock()
+        db.commit = AsyncMock()
+        db.refresh = AsyncMock()
+        db.rollback = AsyncMock()
+        db.add = MagicMock()
+        return db
     
     @pytest.fixture
     def auth_service(self, mock_db):

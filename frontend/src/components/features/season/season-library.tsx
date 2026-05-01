@@ -160,7 +160,7 @@ export function SeasonLibrary() {
             Fresh conversations are waiting. Start a season and invite your reading circle.
           </p>
           {isAuthenticated ? (
-            <Button asChild>
+            <Button>
               <a href="/seasons/create">Create a season</a>
             </Button>
           ) : null}

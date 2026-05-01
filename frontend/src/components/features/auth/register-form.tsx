@@ -46,8 +46,6 @@ const passwordRequirements: PasswordRequirement[] = [
 export function RegisterForm() {
   const { register: registerUser, isLoading, error } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
   
   const {
     register,
@@ -75,13 +73,6 @@ export function RegisterForm() {
         email: data.email,
         password: data.password,
       });
-      // Show confirmation message before redirect
-      setSuccessMessage("Welcome to beansprout! Your account has been created.");
-      setShowSuccess(true);
-      // Small delay to show message before redirect
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 1500);
     } catch {
       // Error is handled by useAuth hook
     }
@@ -179,18 +170,10 @@ export function RegisterForm() {
             </div>
           )}
 
-          {/* Success Message */}
-          {showSuccess && (
-            <div className="p-3 rounded-lg bg-success-container text-foreground text-sm flex items-center gap-2">
-              <Check className="w-4 h-4" />
-              {successMessage}
-            </div>
-          )}
-
           {/* Submit Button */}
           <Button
             type="submit"
-            disabled={isLoading || !allRequirementsMet || showSuccess}
+            disabled={isLoading || !allRequirementsMet}
             size="lg"
             className="w-full h-12"
           >
@@ -198,11 +181,6 @@ export function RegisterForm() {
               <span className="flex items-center gap-2">
                 <span className="animate-spin">⏳</span>
                 Creating account...
-              </span>
-            ) : showSuccess ? (
-              <span className="flex items-center gap-2">
-                <Check className="w-4 h-4" />
-                Redirecting...
               </span>
             ) : (
               "Create Account"

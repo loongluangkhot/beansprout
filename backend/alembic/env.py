@@ -10,7 +10,7 @@ from alembic import context
 
 # Import models to ensure they're available for autogenerate
 from app.config import settings
-from app.models.user import Base
+from app.models import Base, Meetup, Season, SeasonMember, User  # noqa: F401
 
 # this is the Alembic Config object
 config = context.config
