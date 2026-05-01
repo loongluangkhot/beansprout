@@ -102,7 +102,7 @@ class TestProfileService:
     async def test_get_user_profile_success(self):
         """Test successful profile retrieval."""
         mock_db = AsyncMock()
-        mock_result = AsyncMock()
+        mock_result = MagicMock()
         mock_user = MagicMock()
         mock_user.id = uuid4()
         mock_user.email = "test@example.com"
@@ -127,7 +127,7 @@ class TestProfileService:
     async def test_get_user_profile_not_found(self):
         """Test profile retrieval for non-existent user."""
         mock_db = AsyncMock()
-        mock_result = AsyncMock()
+        mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         mock_db.execute.return_value = mock_result
         
@@ -140,7 +140,7 @@ class TestProfileService:
     async def test_update_user_profile_success(self):
         """Test successful profile update."""
         mock_db = AsyncMock()
-        mock_result = AsyncMock()
+        mock_result = MagicMock()
         mock_user = MagicMock()
         mock_user.id = uuid4()
         mock_user.email = "test@example.com"

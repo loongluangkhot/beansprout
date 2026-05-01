@@ -6,6 +6,7 @@
 import type { Metadata } from "next";
 import { Manrope, Newsreader } from "next/font/google";
 import { SessionValidator } from "@/components/providers/session-validator";
+import { QueryProvider } from "@/components/providers/query-provider";
 import { Header } from "@/components/features/header";
 import "./globals.css";
 
@@ -32,10 +33,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${manrope.variable} ${newsreader.variable} font-manrope antialiased bg-surface text-foreground`}>
-        <SessionValidator>
-          <Header />
-          {children}
-        </SessionValidator>
+        <QueryProvider>
+          <SessionValidator>
+            <Header />
+            {children}
+          </SessionValidator>
+        </QueryProvider>
       </body>
     </html>
   );

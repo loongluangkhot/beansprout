@@ -34,6 +34,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-03
+last_updated: 2026-05-01
 project: beansprout
 project_key: NOKEY
 tracking_system: file-system
@@ -50,9 +51,9 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: Season Discovery & Joining
-  epic-2: backlog
-  2-1-season-library-browse: backlog
-  2-2-season-search-filter: backlog
+  epic-2: in-progress
+  2-1-season-library-browse: done
+  2-2-season-search-filter: done
   2-3-season-detail-view: backlog
   2-4-view-user-profiles: backlog
   2-5-join-a-season: backlog

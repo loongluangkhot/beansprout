@@ -10,10 +10,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import status
-from fastapi.exceptions import HTTPException
 from httpx import AsyncClient, ASGITransport
 
 from app.main import app
+from app.schemas.profile import ProfileResponse
 
 
 # Test constants
@@ -46,13 +46,12 @@ class TestProfilePhotoUpload:
             transport=ASGITransport(app=app),
             base_url="http://test"
         ) as client:
-            with pytest.raises(HTTPException) as exc_info:
-                await client.post(
-                    "/api/v1/users/me/photo",
-                    files={"file": ("test.jpg", VALID_JPEG_CONTENT, "image/jpeg")}
-                )
-        
-        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+            response = await client.post(
+                "/api/v1/users/me/photo",
+                files={"file": ("test.jpg", VALID_JPEG_CONTENT, "image/jpeg")}
+            )
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     @pytest.mark.asyncio
     async def test_upload_photo_with_invalid_token(self, auth_headers):
@@ -63,14 +62,13 @@ class TestProfilePhotoUpload:
             transport=ASGITransport(app=app),
             base_url="http://test"
         ) as client:
-            with pytest.raises(HTTPException) as exc_info:
-                await client.post(
-                    "/api/v1/users/me/photo",
-                    headers=invalid_headers,
-                    files={"file": ("test.jpg", VALID_JPEG_CONTENT, "image/jpeg")}
-                )
-        
-        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+            response = await client.post(
+                "/api/v1/users/me/photo",
+                headers=invalid_headers,
+                files={"file": ("test.jpg", VALID_JPEG_CONTENT, "image/jpeg")}
+            )
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     @pytest.mark.asyncio
     async def test_upload_photo_invalid_file_type(self, auth_headers):
@@ -104,14 +102,14 @@ class TestProfilePhotoUpload:
                 files={"file": ("large.jpg", large_content, "image/jpeg")}
             )
         
-        assert response.status_code == status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+        assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
         assert "file_too_large" in response.json()["error"]["type"]
 
     @pytest.mark.asyncio
     async def test_upload_photo_jpeg_success(self, auth_headers):
         """Test successful JPEG photo upload."""
         with patch("app.services.profile_service.ProfileService.upload_profile_photo") as mock_upload:
-            mock_upload.return_value = MagicMock(
+            mock_upload.return_value = ProfileResponse(
                 id=TEST_USER_ID,
                 email="test@example.com",
                 display_name="Test User",
@@ -141,7 +139,7 @@ class TestProfilePhotoUpload:
     async def test_upload_photo_png_success(self, auth_headers):
         """Test successful PNG photo upload."""
         with patch("app.services.profile_service.ProfileService.upload_profile_photo") as mock_upload:
-            mock_upload.return_value = MagicMock(
+            mock_upload.return_value = ProfileResponse(
                 id=TEST_USER_ID,
                 email="test@example.com",
                 display_name="Test User",
@@ -184,10 +182,9 @@ class TestProfilePhotoDelete:
             transport=ASGITransport(app=app),
             base_url="http://test"
         ) as client:
-            with pytest.raises(HTTPException) as exc_info:
-                await client.delete("/api/v1/users/me/photo")
-        
-        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+            response = await client.delete("/api/v1/users/me/photo")
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     @pytest.mark.asyncio
     async def test_delete_photo_with_invalid_token(self, auth_headers):
@@ -198,19 +195,18 @@ class TestProfilePhotoDelete:
             transport=ASGITransport(app=app),
             base_url="http://test"
         ) as client:
-            with pytest.raises(HTTPException) as exc_info:
-                await client.delete(
-                    "/api/v1/users/me/photo",
-                    headers=invalid_headers
-                )
-        
-        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+            response = await client.delete(
+                "/api/v1/users/me/photo",
+                headers=invalid_headers
+            )
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     @pytest.mark.asyncio
     async def test_delete_photo_success(self, auth_headers):
         """Test successful photo deletion."""
         with patch("app.services.profile_service.ProfileService.delete_profile_photo") as mock_delete:
-            mock_delete.return_value = MagicMock(
+            mock_delete.return_value = ProfileResponse(
                 id=TEST_USER_ID,
                 email="test@example.com",
                 display_name="Test User",
