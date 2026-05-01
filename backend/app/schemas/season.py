@@ -47,3 +47,47 @@ class SeasonBrowseResult(BaseModel):
                 "has_next": page * page_size < self.total,
             },
         }
+
+
+class SeasonDetailMeetup(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    starts_at: datetime
+
+
+class SeasonDetailItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    title: str
+    theme: str | None = None
+    description: str | None = None
+    book_title: str
+    book_author: str
+    cover_image_url: str | None = None
+    member_count: int = 0
+    location_name: str | None = None
+    location_url: str | None = None
+    meetups: list[SeasonDetailMeetup] = Field(default_factory=list)
+
+
+class SeasonDetailMeta(BaseModel):
+    meetup_count: int = Field(ge=0)
+
+
+class SeasonDetailResponse(BaseModel):
+    data: SeasonDetailItem
+    meta: SeasonDetailMeta
+
+
+class SeasonDetailResult(BaseModel):
+    item: SeasonDetailItem
+
+    def to_response(self) -> dict[str, Any]:
+        return {
+            "data": self.item.model_dump(mode="json"),
+            "meta": {
+                "meetup_count": len(self.item.meetups),
+            },
+        }

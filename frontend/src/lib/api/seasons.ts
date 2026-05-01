@@ -1,11 +1,18 @@
 import { apiRequest } from "./client";
-import type { SeasonBrowseFilters, SeasonBrowseResponse } from "@/types/season";
+import type {
+  SeasonBrowseFilters,
+  SeasonBrowseResponse,
+  SeasonDetailResponse,
+} from "@/types/season";
 
 export type {
   SeasonBrowseFilters,
   SeasonBrowseItem,
   SeasonBrowseMeta,
   SeasonBrowseResponse,
+  SeasonDetailItem,
+  SeasonDetailMeta,
+  SeasonDetailResponse,
 } from "@/types/season";
 
 const SEASONS_ENDPOINT = "/v1/seasons";
@@ -36,4 +43,17 @@ export function getSeasons(
     `${SEASONS_ENDPOINT}?${params.toString()}`,
     { method: "GET" }
   );
+}
+
+export function getSeasonById(seasonId: string): Promise<SeasonDetailResponse> {
+  const normalizedSeasonId = seasonId.trim();
+  if (!normalizedSeasonId) {
+    throw new Error("seasonId is required");
+  }
+
+  const encodedSeasonId = encodeURIComponent(normalizedSeasonId);
+
+  return apiRequest<SeasonDetailResponse>(`${SEASONS_ENDPOINT}/${encodedSeasonId}`, {
+    method: "GET",
+  });
 }

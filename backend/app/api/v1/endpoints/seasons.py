@@ -3,6 +3,7 @@ Season browse endpoints.
 """
 
 import logging
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import JSONResponse
@@ -11,7 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.schemas.season import SeasonBrowseResponse
+from app.schemas.season import SeasonBrowseResponse, SeasonDetailResponse
 from app.services.season_service import SeasonService
 
 logger = logging.getLogger(__name__)
@@ -69,5 +70,61 @@ async def list_public_seasons(
                 "title": "Internal Server Error",
                 "status": 500,
                 "detail": "Season data failed validation while loading season library",
+            },
+        )
+
+
+@router.get(
+    "/{season_id}",
+    response_model=SeasonDetailResponse,
+    summary="Get public season detail",
+    description="Returns season detail information including upcoming meetups.",
+)
+async def get_public_season_detail(
+    season_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    service = SeasonService(db)
+
+    try:
+        result = await service.get_public_season_detail(season_id=str(season_id))
+        if result is None:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                media_type="application/problem+json",
+                content={
+                    "type": "about:blank",
+                    "title": "Not Found",
+                    "status": 404,
+                    "detail": "Season not found",
+                },
+            )
+
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content=result.to_response(),
+        )
+    except SQLAlchemyError as exc:
+        logger.error("Error loading season detail for %s: %s", season_id, exc)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Internal Server Error",
+                "status": 500,
+                "detail": "An error occurred while loading season detail",
+            },
+        )
+    except ValidationError as exc:
+        logger.error("Invalid season detail payload for %s: %s", season_id, exc)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Internal Server Error",
+                "status": 500,
+                "detail": "Season detail data failed validation",
             },
         )
