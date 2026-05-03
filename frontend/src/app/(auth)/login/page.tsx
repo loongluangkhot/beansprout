@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AuthCard } from "@/components/features/auth/auth-card";
 import { LoginForm } from "@/components/features/auth/login-form";
+import { RedirectingState } from "@/components/ui/redirecting-state";
 import { useAuthStore } from "@/stores/auth-store";
 
 export default function LoginPage() {
@@ -22,7 +23,7 @@ export default function LoginPage() {
   }, [isAuthenticated, router]);
 
   if (isAuthenticated) {
-    return null;
+    return <RedirectingState />;
   }
 
   return (

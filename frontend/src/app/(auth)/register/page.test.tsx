@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import RegisterPage from "./page";
 
 const mockReplace = jest.fn();
@@ -25,9 +25,9 @@ describe("RegisterPage", () => {
       selector({ isAuthenticated: true })
     );
 
-    const { container } = render(<RegisterPage />);
+    render(<RegisterPage />);
 
-    expect(container.firstChild).toBeNull();
+    expect(screen.getByText("Redirecting...")).toBeInTheDocument();
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith("/seasons");

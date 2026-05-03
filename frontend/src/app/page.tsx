@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
+import { RedirectingState } from "@/components/ui/redirecting-state";
 
 export default function HomePage() {
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function HomePage() {
   }, [isAuthenticated, router]);
 
   if (isAuthenticated) {
-    return null;
+    return <RedirectingState />;
   }
 
   return (

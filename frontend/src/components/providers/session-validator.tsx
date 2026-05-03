@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/stores/auth-store";
+import { RedirectingState } from "@/components/ui/redirecting-state";
 
 interface SessionValidatorProps {
   children: React.ReactNode;
@@ -29,9 +30,9 @@ export function SessionValidator({ children }: SessionValidatorProps) {
     checkSession();
   }, [token, validateSession]);
 
-  // Show nothing while validating (prevents flash of unauthenticated state)
+  // Show a neutral full-page state while validating session
   if (!isReady) {
-    return null;
+    return <RedirectingState />;
   }
 
   return <>{children}</>;

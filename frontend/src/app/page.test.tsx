@@ -25,9 +25,9 @@ describe("HomePage", () => {
       selector({ isAuthenticated: true })
     );
 
-    const { container } = render(<HomePage />);
+    render(<HomePage />);
 
-    expect(container.firstChild).toBeNull();
+    expect(screen.getByText("Redirecting...")).toBeInTheDocument();
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith("/seasons");

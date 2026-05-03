@@ -30,6 +30,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // App auth state is stored client-side (localStorage) and cannot be read in middleware.
+  // Enforcing page-route auth here can cause redirect loops for logged-in users.
+  // Keep middleware auth checks for API routes only.
+  if (!pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+
   // Check for auth token in cookies or header
   const token = request.cookies.get('auth-token')?.value ||
                 request.headers.get('Authorization')?.replace('Bearer ', '');
