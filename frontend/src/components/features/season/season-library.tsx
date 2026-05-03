@@ -3,6 +3,7 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChangeEvent, useMemo, useState } from "react";
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 
 import { getSeasons } from "@/lib/api/seasons";
 import type { SeasonBrowseFilters } from "@/types/season";
@@ -160,9 +161,12 @@ export function SeasonLibrary() {
             Fresh conversations are waiting. Start a season and invite your reading circle.
           </p>
           {isAuthenticated ? (
-            <Button>
-              <a href="/seasons/create">Create a season</a>
-            </Button>
+            <Link
+              href="/seasons/create"
+              className="inline-flex h-10 items-center justify-center rounded-full px-4 py-2 font-medium bs-cta shadow-none transition-all hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              Create a season
+            </Link>
           ) : null}
         </div>
       </div>

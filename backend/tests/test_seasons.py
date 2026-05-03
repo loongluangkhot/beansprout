@@ -3,7 +3,7 @@ Season browse endpoint tests.
 """
 
 from unittest.mock import AsyncMock, MagicMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,6 +20,7 @@ SEASON_UUID = str(uuid4())
 @pytest.fixture
 def mock_db_session():
     session = AsyncMock()
+    session.add = MagicMock()
     return session
 
 
@@ -404,3 +405,338 @@ async def test_service_join_season_query_uses_capacity_guard():
     join_query = str(db.execute.call_args_list[0].args[0])
     assert "FOR UPDATE" in join_query
     assert "INSERT INTO season_members" in join_query
+
+
+class TestSeasonCreateEndpoint:
+    def test_returns_401_when_missing_auth_header(self, client):
+        response = client.post(
+            "/api/v1/seasons",
+            json={
+                "title": "Spring Reads",
+                "book_title": "Tomorrow",
+                "book_author": "Gabrielle Zevin",
+            },
+        )
+        assert response.status_code == 401
+        assert response.headers["content-type"].startswith("application/problem+json")
+
+    def test_creates_season_when_authenticated(self, client, mock_db_session):
+        async def refresh_side_effect(instance):
+            instance.id = uuid4()
+            instance.status = "draft"
+            instance.is_public = True
+
+        mock_db_session.refresh.side_effect = refresh_side_effect
+        user_lookup_result = MagicMock()
+        user_lookup_result.scalar_one_or_none.return_value = uuid4()
+        mock_db_session.execute.return_value = user_lookup_result
+
+        token = create_access_token({"sub": str(uuid4()), "email": "member@example.com"})
+        response = client.post(
+            "/api/v1/seasons",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "title": " Spring Reads ",
+                "book_title": " Tomorrow ",
+                "book_author": " Gabrielle Zevin ",
+                "description": " Warm and welcoming ",
+                "cover_image_url": " https://example.com/cover.jpg ",
+                "theme": "  Contemporary Relationships  ",
+                "max_members": 25,
+            },
+        )
+
+        assert response.status_code == 201
+        payload = response.json()
+        assert payload["data"]["title"] == "Spring Reads"
+        assert payload["data"]["book_title"] == "Tomorrow"
+        assert payload["data"]["book_author"] == "Gabrielle Zevin"
+        assert payload["data"]["description"] == "Warm and welcoming"
+        assert payload["data"]["cover_image_url"] == "https://example.com/cover.jpg"
+        assert payload["data"]["theme"] == "Contemporary Relationships"
+        assert payload["data"]["max_members"] == 25
+        assert payload["data"]["membership_mode"] == "auto-join"
+        assert payload["data"]["status"] == "draft"
+        assert payload["data"]["is_public"] is True
+
+    def test_rejects_blank_required_fields(self, client):
+        token = create_access_token({"sub": str(uuid4()), "email": "member@example.com"})
+        response = client.post(
+            "/api/v1/seasons",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "title": "   ",
+                "book_title": "",
+                "book_author": "Author",
+            },
+        )
+
+        assert response.status_code == 422
+        assert response.headers["content-type"].startswith("application/json")
+
+
+@pytest.mark.asyncio
+async def test_service_create_season_persists_creator_and_defaults():
+    db = AsyncMock()
+    db.add = MagicMock()
+    user_id = str(uuid4())
+
+    async def refresh_side_effect(instance):
+        instance.id = uuid4()
+        instance.status = "draft"
+        instance.is_public = True
+
+    db.refresh.side_effect = refresh_side_effect
+    user_lookup_result = MagicMock()
+    user_lookup_result.scalar_one_or_none.return_value = UUID(user_id)
+    db.execute.return_value = user_lookup_result
+
+    service = SeasonService(db)
+    result = await service.create_season(
+        title=" Spring Reads ",
+        book_title=" Tomorrow ",
+        book_author=" Gabrielle Zevin ",
+        description=" Warm circle ",
+        cover_image_url=" https://example.com/cover.jpg ",
+        theme="  Contemporary Relationships  ",
+        max_members=25,
+        membership_mode="approval-required",
+        created_by_user_id=user_id,
+    )
+
+    assert result.title == "Spring Reads"
+    assert result.book_title == "Tomorrow"
+    assert result.book_author == "Gabrielle Zevin"
+    assert result.description == "Warm circle"
+    assert result.cover_image_url == "https://example.com/cover.jpg"
+    assert result.theme == "Contemporary Relationships"
+    assert result.max_members == 25
+    assert result.membership_mode == "approval-required"
+    assert result.created_by_user_id == user_id
+    assert result.status == "draft"
+    assert result.is_public is True
+    assert db.add.call_count == 1
+    assert db.commit.await_count == 1
+
+
+def test_returns_401_when_token_subject_user_not_found(client, mock_db_session):
+    user_lookup_result = MagicMock()
+    user_lookup_result.scalar_one_or_none.return_value = None
+    mock_db_session.execute.return_value = user_lookup_result
+
+    token = create_access_token({"sub": str(uuid4()), "email": "member@example.com"})
+    response = client.post(
+        "/api/v1/seasons",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "title": "Spring Reads",
+            "book_title": "Tomorrow",
+            "book_author": "Gabrielle Zevin",
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.headers["content-type"].startswith("application/problem+json")
+
+
+def test_rejects_invalid_max_members_payload(client):
+    token = create_access_token({"sub": str(uuid4()), "email": "member@example.com"})
+    response = client.post(
+        "/api/v1/seasons",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "title": "Spring Reads",
+            "book_title": "Tomorrow",
+            "book_author": "Gabrielle Zevin",
+            "max_members": 0,
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("application/json")
+
+
+class TestSeasonScheduleEndpoint:
+    def test_returns_401_when_missing_auth_header(self, client):
+        response = client.patch(
+            f"/api/v1/seasons/{SEASON_UUID}/schedule",
+            json={
+                "start_date": "2099-01-01T10:00:00Z",
+                "duration_weeks": 10,
+                "frequency": "weekly",
+            },
+        )
+        assert response.status_code == 401
+
+    def test_returns_403_for_non_creator(self, client, mock_db_session):
+        season = MagicMock()
+        season.created_by_user_id = uuid4()
+        mock_db_session.get.return_value = season
+
+        token = create_access_token({"sub": str(uuid4()), "email": "member@example.com"})
+        response = client.patch(
+            f"/api/v1/seasons/{SEASON_UUID}/schedule",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "start_date": "2099-01-01T10:00:00Z",
+                "duration_weeks": 10,
+                "frequency": "weekly",
+            },
+        )
+        assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_service_update_schedule_rejects_past_start_date():
+    from app.schemas.season import SeasonScheduleRequest
+
+    db = AsyncMock()
+    user_id = uuid4()
+    season = MagicMock()
+    season.created_by_user_id = user_id
+    db.get.return_value = season
+    service = SeasonService(db)
+
+    with pytest.raises(ValueError):
+        await service.update_schedule(
+            season_id=str(uuid4()),
+            requester_user_id=str(user_id),
+            payload=SeasonScheduleRequest(
+                start_date="2000-01-01T10:00:00Z",
+                duration_weeks=10,
+                frequency="weekly",
+                meetup_datetimes=None,
+            ),
+        )
+
+
+@pytest.mark.asyncio
+async def test_service_update_schedule_persists_manual_overrides_exactly():
+    from app.schemas.season import SeasonScheduleRequest
+
+    db = AsyncMock()
+    user_id = uuid4()
+    season_id = uuid4()
+    season = MagicMock()
+    season.created_by_user_id = user_id
+    db.get.return_value = season
+    service = SeasonService(db)
+
+    payload = SeasonScheduleRequest(
+        start_date="2099-01-01T10:00:00Z",
+        duration_weeks=10,
+        frequency="weekly",
+        meetup_datetimes=["2099-01-03T10:00:00Z", "2099-01-10T11:00:00Z"],
+    )
+
+    result = await service.update_schedule(
+        season_id=str(season_id),
+        requester_user_id=str(user_id),
+        payload=payload,
+    )
+
+    assert result is not None
+    assert result.meetup_count == 2
+    assert [dt.isoformat().replace("+00:00", "Z") for dt in result.meetup_datetimes] == [
+        "2099-01-03T10:00:00Z",
+        "2099-01-10T11:00:00Z",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_service_update_schedule_rolls_back_transaction_on_error():
+    from app.schemas.season import SeasonScheduleRequest
+
+    db = AsyncMock()
+    user_id = uuid4()
+    season_id = uuid4()
+    season = MagicMock()
+    season.created_by_user_id = user_id
+    db.get.return_value = season
+    db.execute.side_effect = SQLAlchemyError("db failure")
+
+    service = SeasonService(db)
+    payload = SeasonScheduleRequest(
+        start_date="2099-01-01T10:00:00Z",
+        duration_weeks=10,
+        frequency="weekly",
+    )
+
+    with pytest.raises(SQLAlchemyError):
+        await service.update_schedule(
+            season_id=str(season_id),
+            requester_user_id=str(user_id),
+            payload=payload,
+        )
+
+
+@pytest.mark.asyncio
+async def test_service_update_schedule_rejects_empty_manual_override_list():
+    from app.schemas.season import SeasonScheduleRequest
+
+    db = AsyncMock()
+    user_id = uuid4()
+    season = MagicMock()
+    season.created_by_user_id = user_id
+    db.get.return_value = season
+    service = SeasonService(db)
+
+    payload = SeasonScheduleRequest(
+        start_date="2099-01-01T10:00:00Z",
+        duration_weeks=10,
+        frequency="weekly",
+        meetup_datetimes=[],
+    )
+
+    with pytest.raises(ValueError, match="meetup_datetimes cannot be empty"):
+        await service.update_schedule(
+            season_id=str(uuid4()),
+            requester_user_id=str(user_id),
+            payload=payload,
+        )
+
+
+@pytest.mark.asyncio
+async def test_service_update_schedule_rejects_duplicate_meetups():
+    from app.schemas.season import SeasonScheduleRequest
+
+    db = AsyncMock()
+    user_id = uuid4()
+    season = MagicMock()
+    season.created_by_user_id = user_id
+    db.get.return_value = season
+    service = SeasonService(db)
+
+    payload = SeasonScheduleRequest(
+        start_date="2099-01-01T10:00:00Z",
+        duration_weeks=10,
+        frequency="weekly",
+        meetup_datetimes=["2099-01-03T10:00:00Z", "2099-01-03T10:00:00Z"],
+    )
+
+    with pytest.raises(ValueError, match="meetup datetimes must be unique"):
+        await service.update_schedule(
+            season_id=str(uuid4()),
+            requester_user_id=str(user_id),
+            payload=payload,
+        )
+
+
+@pytest.mark.asyncio
+async def test_service_update_schedule_rejects_invalid_requester_user_id():
+    from app.schemas.season import SeasonScheduleRequest
+
+    db = AsyncMock()
+    service = SeasonService(db)
+    payload = SeasonScheduleRequest(
+        start_date="2099-01-01T10:00:00Z",
+        duration_weeks=10,
+        frequency="weekly",
+    )
+
+    with pytest.raises(ValueError, match="invalid requester_user_id"):
+        await service.update_schedule(
+            season_id=str(uuid4()),
+            requester_user_id="not-a-uuid",
+            payload=payload,
+        )

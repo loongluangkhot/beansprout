@@ -2,10 +2,10 @@
 Season browse schemas.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class SeasonBrowseItem(BaseModel):
@@ -19,6 +19,7 @@ class SeasonBrowseItem(BaseModel):
     book_author: str
     cover_image_url: str | None = None
     member_count: int = 0
+    max_members: int | None = Field(default=None, ge=1)
 
 
 class SeasonBrowseMeta(BaseModel):
@@ -76,6 +77,7 @@ class SeasonDetailItem(BaseModel):
     book_author: str
     cover_image_url: str | None = None
     member_count: int = 0
+    max_members: int | None = Field(default=None, ge=1)
     location_name: str | None = None
     location_url: str | None = None
     is_member: bool = False
@@ -118,4 +120,142 @@ class SeasonJoinData(BaseModel):
 
 class SeasonJoinResponse(BaseModel):
     data: SeasonJoinData
+    meta: dict[str, Any] = Field(default_factory=dict)
+
+
+class SeasonCreateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+    book_title: str = Field(min_length=1, max_length=255)
+    book_author: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    cover_image_url: str | None = Field(default=None, max_length=500)
+    theme: str | None = Field(default=None, max_length=255)
+    max_members: int | None = Field(default=None, ge=1, le=500)
+    membership_mode: str | None = None
+
+    @field_validator("title", "book_title", "book_author", mode="before")
+    @classmethod
+    def validate_required_text(cls, value: str) -> str:
+        if not isinstance(value, str):
+            raise ValueError("must be a string")
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("must not be empty")
+        return normalized
+
+    @field_validator("description", "cover_image_url", "theme", mode="before")
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ValueError("must be a string")
+        normalized = value.strip()
+        return normalized or None
+
+    @field_validator("membership_mode", mode="before")
+    @classmethod
+    def normalize_membership_mode(cls, value: str | None) -> str:
+        if value is None:
+            return "auto-join"
+        if not isinstance(value, str):
+            raise ValueError("must be a string")
+        normalized = value.strip().lower()
+        if normalized not in {"auto-join", "approval-required"}:
+            raise ValueError("must be one of: auto-join, approval-required")
+        return normalized
+
+
+class SeasonCreateData(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    title: str
+    book_title: str
+    book_author: str
+    description: str | None = None
+    cover_image_url: str | None = None
+    theme: str | None = None
+    max_members: int | None = Field(default=None, ge=1)
+    membership_mode: str
+    created_by_user_id: str
+    status: str
+    is_public: bool
+
+
+class SeasonCreateResponse(BaseModel):
+    data: SeasonCreateData
+    meta: dict[str, Any] = Field(default_factory=dict)
+
+
+class SeasonScheduleFrequency(str):
+    WEEKLY = "weekly"
+    BI_WEEKLY = "bi-weekly"
+    MONTHLY = "monthly"
+
+
+class SeasonScheduleRequest(BaseModel):
+    start_date: datetime
+    duration_weeks: int = Field(ge=1, le=52)
+    frequency: str
+    meetup_datetimes: list[datetime] | None = None
+
+    @field_validator("start_date", mode="before")
+    @classmethod
+    def normalize_start_date(cls, value: datetime | str) -> datetime:
+        if isinstance(value, str):
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if not isinstance(value, datetime):
+            raise ValueError("must be a datetime")
+        if value.tzinfo is None:
+            raise ValueError("must include timezone")
+        return value.astimezone(UTC)
+
+    @field_validator("frequency", mode="before")
+    @classmethod
+    def validate_frequency(cls, value: str) -> str:
+        if not isinstance(value, str):
+            raise ValueError("must be a string")
+        normalized = value.strip().lower()
+        allowed = {
+            SeasonScheduleFrequency.WEEKLY,
+            SeasonScheduleFrequency.BI_WEEKLY,
+            SeasonScheduleFrequency.MONTHLY,
+        }
+        if normalized not in allowed:
+            raise ValueError("must be one of: weekly, bi-weekly, monthly")
+        return normalized
+
+    @field_validator("meetup_datetimes", mode="before")
+    @classmethod
+    def normalize_meetup_datetimes(
+        cls, value: list[datetime | str] | None
+    ) -> list[datetime] | None:
+        if value is None:
+            return None
+        normalized: list[datetime] = []
+        for item in value:
+            dt = item
+            if isinstance(item, str):
+                dt = datetime.fromisoformat(item.replace("Z", "+00:00"))
+            if not isinstance(dt, datetime):
+                raise ValueError("meetup datetime must be a datetime")
+            if dt.tzinfo is None:
+                raise ValueError("meetup datetime must include timezone")
+            normalized.append(dt.astimezone(UTC))
+        return normalized
+
+
+class SeasonScheduleData(BaseModel):
+    season_id: str
+    start_date: datetime
+    end_date: datetime
+    duration_weeks: int
+    frequency: str
+    meetup_datetimes: list[datetime]
+    meetup_count: int = Field(ge=0)
+
+
+class SeasonScheduleResponse(BaseModel):
+    data: SeasonScheduleData
     meta: dict[str, Any] = Field(default_factory=dict)

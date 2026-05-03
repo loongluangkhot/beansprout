@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import and_, exists, func, literal, or_, select, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.meetup import Meetup
@@ -16,9 +17,12 @@ from app.models.user import User
 from app.schemas.season import (
     SeasonBrowseItem,
     SeasonBrowseResult,
+    SeasonCreateData,
     SeasonDetailItem,
     SeasonDetailMeetup,
     SeasonProfileSummary,
+    SeasonScheduleData,
+    SeasonScheduleRequest,
     SeasonDetailResult,
 )
 
@@ -87,6 +91,7 @@ class SeasonService:
                 Season.book_author,
                 Season.cover_image_url,
                 member_count,
+                Season.max_members,
             )
             .outerjoin(
                 Meetup,
@@ -101,6 +106,7 @@ class SeasonService:
                 Season.book_title,
                 Season.book_author,
                 Season.cover_image_url,
+                Season.max_members,
                 Season.created_at,
             )
             .order_by(next_meetup_at.asc().nulls_last(), Season.created_at.desc())
@@ -127,6 +133,7 @@ class SeasonService:
                     "book_author": row["book_author"],
                     "cover_image_url": row["cover_image_url"],
                     "member_count": int(row["member_count"] or 0),
+                    "max_members": row["max_members"],
                 }
             )
             for row in rows
@@ -254,6 +261,7 @@ class SeasonService:
         member_count = int(item_data.get("member_count", 0))
         max_members = item_data.pop("max_members", None)
         max_members_value = int(max_members) if max_members is not None else None
+        item_data["max_members"] = max_members_value
         is_full = (
             max_members_value is not None and member_count >= max_members_value
         )
@@ -354,3 +362,161 @@ class SeasonService:
         if row is None:
             return None
         return dict(row)
+
+    async def create_season(
+        self,
+        *,
+        title: str,
+        book_title: str,
+        book_author: str,
+        created_by_user_id: str,
+        description: str | None = None,
+        cover_image_url: str | None = None,
+        theme: str | None = None,
+        max_members: int | None = None,
+        membership_mode: str = "auto-join",
+    ) -> SeasonCreateData:
+        try:
+            creator_uuid = UUID(created_by_user_id)
+        except ValueError as exc:
+            raise ValueError("invalid created_by_user_id") from exc
+
+        creator_exists_result = await self.db.execute(
+            select(User.id).where(User.id == creator_uuid)
+        )
+        if creator_exists_result.scalar_one_or_none() is None:
+            raise LookupError("creator user not found")
+
+        normalized_title = title.strip()
+        normalized_book_title = book_title.strip()
+        normalized_book_author = book_author.strip()
+        normalized_description = description.strip() if isinstance(description, str) else None
+        normalized_cover_image_url = (
+            cover_image_url.strip() if isinstance(cover_image_url, str) else None
+        )
+        normalized_theme = theme.strip() if isinstance(theme, str) else None
+        normalized_membership_mode = (
+            membership_mode.strip().lower() if isinstance(membership_mode, str) else "auto-join"
+        )
+        if normalized_membership_mode not in {"auto-join", "approval-required"}:
+            raise ValueError("invalid membership_mode")
+
+        season = Season(
+            title=normalized_title,
+            book_title=normalized_book_title,
+            book_author=normalized_book_author,
+            description=normalized_description or None,
+            cover_image_url=normalized_cover_image_url or None,
+            theme=normalized_theme or None,
+            max_members=max_members,
+            membership_mode=normalized_membership_mode,
+            created_by_user_id=creator_uuid,
+        )
+        self.db.add(season)
+        try:
+            await self.db.commit()
+            await self.db.refresh(season)
+        except SQLAlchemyError:
+            await self.db.rollback()
+            raise
+
+        return SeasonCreateData(
+            id=str(season.id),
+            title=season.title,
+            book_title=season.book_title,
+            book_author=season.book_author,
+            description=season.description,
+            cover_image_url=season.cover_image_url,
+            theme=season.theme,
+            max_members=season.max_members,
+            membership_mode=season.membership_mode,
+            created_by_user_id=str(season.created_by_user_id),
+            status=season.status,
+            is_public=season.is_public,
+        )
+
+    async def update_schedule(
+        self,
+        *,
+        season_id: str,
+        requester_user_id: str,
+        payload: SeasonScheduleRequest,
+    ) -> SeasonScheduleData | None:
+        try:
+            season_uuid = UUID(season_id)
+        except ValueError as exc:
+            raise ValueError("invalid season_id") from exc
+        try:
+            requester_uuid = UUID(requester_user_id)
+        except ValueError as exc:
+            raise ValueError("invalid requester_user_id") from exc
+
+        season = await self.db.get(Season, season_uuid)
+        if season is None:
+            return None
+        if season.created_by_user_id != requester_uuid:
+            raise PermissionError("Only season creator can update schedule")
+
+        now_utc = datetime.now(UTC)
+        start_date = payload.start_date.astimezone(UTC)
+        if start_date <= now_utc:
+            raise ValueError("start_date must be in the future")
+
+        duration_days = payload.duration_weeks * 7
+        end_date = start_date + timedelta(days=duration_days)
+
+        cadence_days_map = {
+            "weekly": 7,
+            "bi-weekly": 14,
+            "monthly": 28,
+        }
+        cadence_days = cadence_days_map[payload.frequency]
+
+        generated_dates: list[datetime] = []
+        current = start_date
+        while current < end_date:
+            generated_dates.append(current)
+            current = current + timedelta(days=cadence_days)
+
+        final_dates = generated_dates
+        if payload.meetup_datetimes is not None:
+            final_dates = sorted(payload.meetup_datetimes)
+            if not final_dates:
+                raise ValueError("meetup_datetimes cannot be empty")
+
+        if len(set(final_dates)) != len(final_dates):
+            raise ValueError("meetup datetimes must be unique")
+
+        for meetup_at in final_dates:
+            if meetup_at < start_date or meetup_at > end_date:
+                raise ValueError("meetup datetime must be within season duration")
+
+        delete_query = (
+            Meetup.__table__.delete()
+            .where(Meetup.season_id == season_uuid)
+            .where(Meetup.starts_at >= now_utc)
+        )
+
+        try:
+            await self.db.execute(delete_query)
+            for meetup_at in final_dates:
+                self.db.add(
+                    Meetup(
+                        season_id=season_uuid,
+                        starts_at=meetup_at,
+                    )
+                )
+            await self.db.commit()
+        except SQLAlchemyError:
+            await self.db.rollback()
+            raise
+
+        return SeasonScheduleData(
+            season_id=season_id,
+            start_date=start_date,
+            end_date=end_date,
+            duration_weeks=payload.duration_weeks,
+            frequency=payload.frequency,
+            meetup_datetimes=final_dates,
+            meetup_count=len(final_dates),
+        )

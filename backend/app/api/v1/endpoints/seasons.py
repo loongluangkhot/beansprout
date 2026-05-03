@@ -13,7 +13,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import decode_access_token
-from app.schemas.season import SeasonBrowseResponse, SeasonDetailResponse, SeasonJoinResponse
+from app.schemas.season import (
+    SeasonBrowseResponse,
+    SeasonCreateRequest,
+    SeasonCreateResponse,
+    SeasonDetailResponse,
+    SeasonJoinResponse,
+    SeasonScheduleRequest,
+    SeasonScheduleResponse,
+)
 from app.services.season_service import SeasonService
 
 logger = logging.getLogger(__name__)
@@ -58,7 +66,7 @@ async def list_public_seasons(
     genre: str | None = Query(default=None),
     schedule: str | None = Query(default=None, pattern="^this-week$"),
     db: AsyncSession = Depends(get_db),
-) -> JSONResponse:
+) -> SeasonBrowseResponse:
     service = SeasonService(db)
 
     try:
@@ -69,10 +77,7 @@ async def list_public_seasons(
             genre=genre,
             schedule=schedule,
         )
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content=result.to_response(page=page, page_size=page_size),
-        )
+        return SeasonBrowseResponse.model_validate(result.to_response(page=page, page_size=page_size))
     except SQLAlchemyError as exc:
         logger.error("Error loading public seasons: %s", exc)
         return JSONResponse(
@@ -109,7 +114,7 @@ async def get_public_season_detail(
     season_id: UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
-) -> JSONResponse:
+) -> SeasonDetailResponse:
     service = SeasonService(db)
     viewer_user_id = _extract_optional_user_id(request)
 
@@ -130,10 +135,7 @@ async def get_public_season_detail(
                 },
             )
 
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content=result.to_response(),
-        )
+        return SeasonDetailResponse.model_validate(result.to_response())
     except SQLAlchemyError as exc:
         logger.error("Error loading season detail for %s: %s", season_id, exc)
         return JSONResponse(
@@ -161,6 +163,83 @@ async def get_public_season_detail(
 
 
 @router.post(
+    "",
+    response_model=SeasonCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new season",
+    description="Creates a new season for an authenticated user.",
+)
+async def create_season(
+    payload: SeasonCreateRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> SeasonCreateResponse:
+    service = SeasonService(db)
+
+    try:
+        user_id = _extract_required_user_id(request)
+    except ValueError:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Unauthorized",
+                "status": 401,
+                "detail": "Missing or invalid authorization header",
+            },
+        )
+
+    try:
+        result = await service.create_season(
+            title=payload.title,
+            book_title=payload.book_title,
+            book_author=payload.book_author,
+            description=payload.description,
+            cover_image_url=payload.cover_image_url,
+            theme=payload.theme,
+            max_members=payload.max_members,
+            membership_mode=payload.membership_mode,
+            created_by_user_id=user_id,
+        )
+        return SeasonCreateResponse(data=result, meta={})
+    except LookupError:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Unauthorized",
+                "status": 401,
+                "detail": "Invalid authentication subject",
+            },
+        )
+    except SQLAlchemyError as exc:
+        logger.error("Error creating season: %s", exc)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Internal Server Error",
+                "status": 500,
+                "detail": "An error occurred while creating season",
+            },
+        )
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Unprocessable Entity",
+                "status": 422,
+                "detail": str(exc),
+            },
+        )
+
+
+@router.post(
     "/{season_id}/join",
     response_model=SeasonJoinResponse,
     summary="Join a public season",
@@ -170,7 +249,7 @@ async def join_public_season(
     season_id: UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
-) -> JSONResponse:
+) -> SeasonJoinResponse:
     service = SeasonService(db)
 
     try:
@@ -211,13 +290,7 @@ async def join_public_season(
                     "detail": "Season is full",
                 },
             )
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content={
-                "data": result,
-                "meta": {},
-            },
-        )
+        return SeasonJoinResponse.model_validate({"data": result, "meta": {}})
     except SQLAlchemyError as exc:
         logger.error("Error joining season %s: %s", season_id, exc)
         return JSONResponse(
@@ -228,5 +301,87 @@ async def join_public_season(
                 "title": "Internal Server Error",
                 "status": 500,
                 "detail": "An error occurred while joining season",
+            },
+        )
+
+
+@router.patch(
+    "/{season_id}/schedule",
+    response_model=SeasonScheduleResponse,
+    summary="Update season schedule",
+    description="Updates schedule details and meetup dates for a season creator.",
+)
+async def update_season_schedule(
+    season_id: UUID,
+    payload: SeasonScheduleRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> SeasonScheduleResponse:
+    service = SeasonService(db)
+
+    try:
+        user_id = _extract_required_user_id(request)
+    except ValueError:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Unauthorized",
+                "status": 401,
+                "detail": "Missing or invalid authorization header",
+            },
+        )
+
+    try:
+        result = await service.update_schedule(
+            season_id=str(season_id),
+            requester_user_id=user_id,
+            payload=payload,
+        )
+        if result is None:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                media_type="application/problem+json",
+                content={
+                    "type": "about:blank",
+                    "title": "Not Found",
+                    "status": 404,
+                    "detail": "Season not found",
+                },
+            )
+        return SeasonScheduleResponse(data=result, meta={})
+    except PermissionError:
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Forbidden",
+                "status": 403,
+                "detail": "Only the season creator can update schedule",
+            },
+        )
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Unprocessable Entity",
+                "status": 422,
+                "detail": str(exc),
+            },
+        )
+    except SQLAlchemyError as exc:
+        logger.error("Error updating season schedule for %s: %s", season_id, exc)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Internal Server Error",
+                "status": 500,
+                "detail": "An error occurred while updating season schedule",
             },
         )

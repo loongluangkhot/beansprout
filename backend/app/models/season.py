@@ -31,6 +31,7 @@ class Season(Base):
     location_name = Column(String(255), nullable=True)
     location_url = Column(String(500), nullable=True)
     max_members = Column(Integer, nullable=True)
+    membership_mode = Column(String(50), nullable=False, server_default="auto-join")
     is_public = Column(Boolean, nullable=False, server_default="true")
     status = Column(String(50), nullable=False, server_default="draft")
     created_by_user_id = Column(

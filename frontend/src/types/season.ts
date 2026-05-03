@@ -7,6 +7,7 @@ export interface SeasonBrowseItem {
   book_author: string;
   cover_image_url: string | null;
   member_count: number;
+  max_members: number | null;
 }
 
 export interface SeasonBrowseMeta {
@@ -48,6 +49,7 @@ export interface SeasonDetailItem {
   book_author: string;
   cover_image_url: string | null;
   member_count: number;
+  max_members: number | null;
   location_name: string | null;
   location_url: string | null;
   is_member: boolean;
@@ -78,5 +80,60 @@ export interface SeasonJoinData {
 
 export interface SeasonJoinResponse {
   data: SeasonJoinData;
+  meta: Record<string, never>;
+}
+
+export interface SeasonCreateRequest {
+  title: string;
+  book_title: string;
+  book_author: string;
+  description?: string;
+  cover_image_url?: string;
+  theme?: string;
+  max_members?: number;
+  membership_mode?: "auto-join" | "approval-required";
+}
+
+export interface SeasonCreateData {
+  id: string;
+  title: string;
+  book_title: string;
+  book_author: string;
+  description: string | null;
+  cover_image_url: string | null;
+  theme: string | null;
+  max_members: number | null;
+  membership_mode: "auto-join" | "approval-required";
+  created_by_user_id: string;
+  status: string;
+  is_public: boolean;
+}
+
+export interface SeasonCreateResponse {
+  data: SeasonCreateData;
+  meta: Record<string, never>;
+}
+
+export type SeasonScheduleFrequency = "weekly" | "bi-weekly" | "monthly";
+
+export interface SeasonScheduleRequest {
+  start_date: string;
+  duration_weeks: number;
+  frequency: SeasonScheduleFrequency;
+  meetup_datetimes?: string[];
+}
+
+export interface SeasonScheduleData {
+  season_id: string;
+  start_date: string;
+  end_date: string;
+  duration_weeks: number;
+  frequency: SeasonScheduleFrequency;
+  meetup_datetimes: string[];
+  meetup_count: number;
+}
+
+export interface SeasonScheduleResponse {
+  data: SeasonScheduleData;
   meta: Record<string, never>;
 }
