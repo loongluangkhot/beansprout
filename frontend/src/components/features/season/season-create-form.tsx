@@ -184,7 +184,7 @@ export function SeasonCreateForm() {
     },
     onSuccess: async (response) => {
       await queryClient.invalidateQueries({ queryKey: ["season-library"] });
-      setSuccessMessage("Season and schedule saved. Taking you to your season page now.");
+      setSuccessMessage("Season published and schedule saved. Taking you to your season page now.");
       router.push(`/seasons/${encodeURIComponent(response.data.id)}`);
     },
   });

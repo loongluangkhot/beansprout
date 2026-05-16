@@ -8,6 +8,7 @@ import type {
   SeasonJoinResponse,
   SeasonScheduleRequest,
   SeasonScheduleResponse,
+  CreatorSeasonListResponse,
 } from "@/types/season";
 
 export type {
@@ -26,6 +27,8 @@ export type {
   SeasonScheduleRequest,
   SeasonScheduleData,
   SeasonScheduleResponse,
+  CreatorSeasonItem,
+  CreatorSeasonListResponse,
 } from "@/types/season";
 
 const SEASONS_ENDPOINT = "/v1/seasons";
@@ -175,6 +178,17 @@ export function createSeason(
     method: "POST",
     headers: createAuthHeaders(token),
     body: JSON.stringify(normalizedPayload),
+  });
+}
+
+export function getCreatorSeasons(token: string): Promise<CreatorSeasonListResponse> {
+  if (!token) {
+    throw new Error("token is required");
+  }
+
+  return apiRequest<CreatorSeasonListResponse>(`${SEASONS_ENDPOINT}/mine`, {
+    method: "GET",
+    headers: createAuthHeaders(token),
   });
 }
 

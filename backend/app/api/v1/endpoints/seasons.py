@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.schemas.season import (
+    CreatorSeasonListResponse,
     SeasonBrowseResponse,
     SeasonCreateRequest,
     SeasonCreateResponse,
@@ -100,6 +101,63 @@ async def list_public_seasons(
                 "title": "Internal Server Error",
                 "status": 500,
                 "detail": "Season data failed validation while loading season library",
+            },
+        )
+
+
+@router.get(
+    "/mine",
+    response_model=CreatorSeasonListResponse,
+    summary="List creator seasons",
+    description="Returns seasons created by the authenticated user.",
+)
+async def list_creator_seasons(
+    request: Request,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+) -> CreatorSeasonListResponse:
+    service = SeasonService(db)
+
+    try:
+        user_id = _extract_required_user_id(request)
+    except ValueError:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Unauthorized",
+                "status": 401,
+                "detail": "Missing or invalid authorization header",
+            },
+        )
+
+    try:
+        seasons, total = await service.list_creator_seasons(
+            creator_user_id=user_id,
+            page=page,
+            page_size=page_size,
+        )
+        return CreatorSeasonListResponse(
+            data=seasons,
+            meta={
+                "page": page,
+                "page_size": page_size,
+                "total": total,
+                "has_next": page * page_size < total,
+            },
+        )
+    except SQLAlchemyError as exc:
+        logger.error("Error loading creator seasons: %s", exc)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Internal Server Error",
+                "status": 500,
+                "detail": "An error occurred while loading creator seasons",
             },
         )
 

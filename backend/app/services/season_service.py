@@ -16,6 +16,7 @@ from app.models.season_member import SeasonMember
 from app.models.user import User
 
 from app.schemas.season import (
+    CreatorSeasonItem,
     SeasonBrowseItem,
     SeasonBrowseResult,
     SeasonCreateData,
@@ -31,6 +32,57 @@ from app.schemas.season import (
 class SeasonService:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def list_creator_seasons(
+        self,
+        creator_user_id: str,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[CreatorSeasonItem], int]:
+        try:
+            creator_uuid = UUID(creator_user_id)
+        except ValueError as exc:
+            raise ValueError("invalid creator_user_id") from exc
+
+        offset = (page - 1) * page_size
+
+        list_result = await self.db.execute(
+            select(
+                Season.id,
+                Season.title,
+                Season.book_title,
+                Season.status,
+                Season.is_public,
+                Season.created_at,
+            )
+            .where(Season.created_by_user_id == creator_uuid)
+            .order_by(Season.created_at.desc())
+            .limit(page_size)
+            .offset(offset)
+        )
+        rows = list_result.mappings().all()
+
+        count_result = await self.db.execute(
+            select(func.count())
+            .select_from(Season)
+            .where(Season.created_by_user_id == creator_uuid)
+        )
+        total = count_result.scalar_one() or 0
+
+        items = [
+            CreatorSeasonItem.model_validate(
+                {
+                    "id": str(row["id"]),
+                    "title": row["title"],
+                    "book_title": row["book_title"],
+                    "status": row["status"],
+                    "is_public": row["is_public"],
+                    "created_at": row["created_at"],
+                }
+            )
+            for row in rows
+        ]
+        return items, int(total)
 
     async def list_public_seasons(
         self,
@@ -452,6 +504,8 @@ class SeasonService:
             location_name=persisted_location_name or None,
             location_url=normalized_location_url or None,
             location_address=persisted_location_address or None,
+            status="published",
+            is_public=True,
             created_by_user_id=creator_uuid,
         )
         self.db.add(season)

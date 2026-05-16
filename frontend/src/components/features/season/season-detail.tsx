@@ -33,6 +33,7 @@ export function SeasonDetail({ seasonId }: SeasonDetailProps) {
   const queryClient = useQueryClient();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const token = useAuthStore((state) => state.token);
+  const currentUserId = useAuthStore((state) => state.user?.id ?? null);
   const viewerCacheKey = token ?? "anon";
   const query = useQuery({
     queryKey: ["season-detail", seasonId, viewerCacheKey],
@@ -76,6 +77,7 @@ export function SeasonDetail({ seasonId }: SeasonDetailProps) {
   }
 
   const season = query.data.data;
+  const isCreator = Boolean(currentUserId && season.creator?.id === currentUserId);
   const joinLabel = season.is_member ? "Joined" : season.is_full ? "Season Full" : "Join Season";
   const joinDisabled =
     joinMutation.isPending || season.is_member || season.is_full || !season.can_join;
@@ -134,6 +136,20 @@ export function SeasonDetail({ seasonId }: SeasonDetailProps) {
             <Button type="button" onClick={handleJoin} disabled={joinDisabled}>
               {joinLabel}
             </Button>
+            {isCreator ? (
+              <div className="rounded-xl bg-surface-container-low px-3 py-3 space-y-2">
+                <p className="font-manrope text-xs uppercase tracking-wide text-foreground-muted">Creator actions</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/seasons/${encodeURIComponent(season.id)}/edit`)}>
+                    Edit
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/seasons/${encodeURIComponent(season.id)}/close`)}>
+                    Close to New Members
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => router.push("/seasons/manage")}>View RSVPs</Button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </CardContent>
       </Card>

@@ -104,6 +104,54 @@ async def test_service_applies_filter_params_to_query_execution():
     assert db.execute.await_count == 2
 
 
+class TestCreatorSeasonEndpoint:
+    def test_returns_creator_seasons_when_authenticated(self, client, mock_db_session):
+        list_result = MagicMock()
+        count_result = MagicMock()
+        mock_db_session.execute.side_effect = [list_result, count_result]
+        list_result.mappings.return_value.all.return_value = [
+            {
+                "id": uuid4(),
+                "title": "Spring Reads",
+                "book_title": "Tomorrow",
+                "status": "published",
+                "is_public": True,
+                "created_at": "2026-05-16T10:00:00Z",
+            }
+        ]
+        count_result.scalar_one.return_value = 1
+
+        token = create_access_token({"sub": str(uuid4()), "email": "creator@example.com"})
+        response = client.get(
+            "/api/v1/seasons/mine?page=1&page_size=10",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["data"][0]["title"] == "Spring Reads"
+        assert payload["data"][0]["status"] == "published"
+        assert payload["meta"]["total"] == 1
+        assert payload["meta"]["has_next"] is False
+
+    def test_returns_401_for_creator_seasons_when_unauthenticated(self, client):
+        response = client.get("/api/v1/seasons/mine")
+        assert response.status_code == 401
+        assert response.headers["content-type"].startswith("application/problem+json")
+
+    def test_returns_500_when_creator_seasons_query_fails(self, client, mock_db_session):
+        mock_db_session.execute.side_effect = SQLAlchemyError("db boom")
+
+        token = create_access_token({"sub": str(uuid4()), "email": "creator@example.com"})
+        response = client.get(
+            "/api/v1/seasons/mine",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 500
+        assert response.headers["content-type"].startswith("application/problem+json")
+
+
 class TestSeasonDetailEndpoint:
     def test_returns_season_detail_with_schedule_and_location(self, client, mock_db_session):
         detail_result = MagicMock()
@@ -365,6 +413,24 @@ async def test_service_detail_query_enforces_upcoming_and_ordering_contract():
 
 
 @pytest.mark.asyncio
+async def test_service_public_list_query_filters_to_published_public_only():
+    db = AsyncMock()
+    list_result = MagicMock()
+    count_result = MagicMock()
+    db.execute.side_effect = [list_result, count_result]
+
+    list_result.mappings.return_value.all.return_value = []
+    count_result.scalar_one.return_value = 0
+
+    service = SeasonService(db)
+    await service.list_public_seasons(page=1, page_size=10)
+
+    list_query = str(db.execute.call_args_list[0].args[0])
+    assert "seasons.is_public IS true" in list_query
+    assert "seasons.status =" in list_query
+
+
+@pytest.mark.asyncio
 async def test_service_list_public_seasons_uses_distinct_member_count_mapping():
     db = AsyncMock()
     list_result = MagicMock()
@@ -431,7 +497,7 @@ class TestSeasonCreateEndpoint:
     def test_creates_season_when_authenticated(self, client, mock_db_session):
         async def refresh_side_effect(instance):
             instance.id = uuid4()
-            instance.status = "draft"
+            instance.status = "published"
             instance.is_public = True
 
         mock_db_session.refresh.side_effect = refresh_side_effect
@@ -470,7 +536,7 @@ class TestSeasonCreateEndpoint:
         assert payload["data"]["location_name"] == "Virtual meetup"
         assert payload["data"]["location_url"] == "https://meet.example.com/room-1"
         assert payload["data"]["location_address"] is None
-        assert payload["data"]["status"] == "draft"
+        assert payload["data"]["status"] == "published"
         assert payload["data"]["is_public"] is True
 
     def test_rejects_blank_required_fields(self, client):
@@ -497,7 +563,7 @@ async def test_service_create_season_persists_creator_and_defaults():
 
     async def refresh_side_effect(instance):
         instance.id = uuid4()
-        instance.status = "draft"
+        instance.status = "published"
         instance.is_public = True
 
     db.refresh.side_effect = refresh_side_effect
@@ -535,7 +601,7 @@ async def test_service_create_season_persists_creator_and_defaults():
     assert result.location_url == "https://maps.example.com/bean-leaf"
     assert result.location_address == "123 Main St"
     assert result.created_by_user_id == user_id
-    assert result.status == "draft"
+    assert result.status == "published"
     assert result.is_public is True
     assert db.add.call_count == 1
     assert db.commit.await_count == 1

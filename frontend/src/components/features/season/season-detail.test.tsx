@@ -29,6 +29,7 @@ describe("SeasonDetail", () => {
       selector({
         isAuthenticated: false,
         token: null,
+        user: null,
       })
     );
   });
@@ -190,6 +191,7 @@ describe("SeasonDetail", () => {
       selector({
         isAuthenticated: true,
         token: "token-123",
+        user: { id: "member-123" },
       })
     );
     getSeasonById.mockResolvedValue({
@@ -228,6 +230,7 @@ describe("SeasonDetail", () => {
       selector({
         isAuthenticated: true,
         token: "token-123",
+        user: { id: "member-123" },
       })
     );
     getSeasonById
@@ -297,6 +300,48 @@ describe("SeasonDetail", () => {
     await waitFor(() => {
       expect(joinSeason).toHaveBeenCalledWith("season-1", "token-123");
       expect(screen.getByRole("button", { name: /Joined/i })).toBeDisabled();
+    });
+  });
+
+  it("shows creator management actions only for the season creator", async () => {
+    useAuthStore.mockImplementation((selector: (state: unknown) => unknown) =>
+      selector({
+        isAuthenticated: true,
+        token: "token-123",
+        user: { id: "creator-1" },
+      })
+    );
+    getSeasonById.mockResolvedValue({
+      data: {
+        id: "season-1",
+        title: "Spring Reads",
+        theme: null,
+        description: null,
+        book_title: "Tomorrow",
+        book_author: "Gabrielle Zevin",
+        cover_image_url: null,
+        member_count: 3,
+        location_mode: "in-person",
+        location_name: null,
+        location_url: null,
+        location_address: null,
+        creator: { id: "creator-1", name: "Season Host", bio: null, profile_photo_url: null },
+        is_member: true,
+        can_join: false,
+        is_full: false,
+        members: [],
+        meetups: [],
+      },
+      meta: { meetup_count: 0 },
+    });
+
+    renderWithQueryClient();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Creator actions/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Close to New Members/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /View RSVPs/i })).toBeInTheDocument();
     });
   });
 });

@@ -85,6 +85,25 @@ export interface SeasonJoinResponse {
   meta: Record<string, never>;
 }
 
+export interface CreatorSeasonItem {
+  id: string;
+  title: string;
+  book_title: string;
+  status: string;
+  is_public: boolean;
+  created_at: string;
+}
+
+export interface CreatorSeasonListResponse {
+  data: CreatorSeasonItem[];
+  meta: {
+    page: number;
+    page_size: number;
+    total: number;
+    has_next: boolean;
+  };
+}
+
 export interface SeasonCreateRequest {
   title: string;
   book_title: string;

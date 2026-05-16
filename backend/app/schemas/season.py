@@ -34,6 +34,29 @@ class SeasonBrowseResponse(BaseModel):
     meta: SeasonBrowseMeta
 
 
+class CreatorSeasonItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    title: str
+    book_title: str
+    status: str
+    is_public: bool
+    created_at: datetime
+
+
+class CreatorSeasonListMeta(BaseModel):
+    page: int = Field(ge=1)
+    page_size: int = Field(ge=1, le=100)
+    total: int = Field(ge=0)
+    has_next: bool
+
+
+class CreatorSeasonListResponse(BaseModel):
+    data: list[CreatorSeasonItem]
+    meta: CreatorSeasonListMeta
+
+
 class SeasonBrowseResult(BaseModel):
     items: list[SeasonBrowseItem]
     total: int
