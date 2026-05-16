@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getSeasonById, joinSeason } from "@/lib/api/seasons";
+import { getSeasonById, joinSeason, updateSeasonStatus } from "@/lib/api/seasons";
 import { useAuthStore } from "@/stores/auth-store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -51,6 +51,19 @@ export function SeasonDetail({ seasonId }: SeasonDetailProps) {
     },
   });
 
+  const statusMutation = useMutation({
+    mutationFn: (nextStatus: "published" | "closed") => {
+      if (!token) {
+        throw new Error("Missing auth token");
+      }
+      return updateSeasonStatus(seasonId, nextStatus, token);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["season-detail", seasonId] });
+      await queryClient.invalidateQueries({ queryKey: ["creator-seasons"] });
+    },
+  });
+
   if (query.isLoading) {
     return (
       <div className="space-y-4">
@@ -78,9 +91,16 @@ export function SeasonDetail({ seasonId }: SeasonDetailProps) {
 
   const season = query.data.data;
   const isCreator = Boolean(currentUserId && season.creator?.id === currentUserId);
-  const joinLabel = season.is_member ? "Joined" : season.is_full ? "Season Full" : "Join Season";
+  const isClosed = season.status === "closed";
+  const joinLabel = season.is_member
+    ? "Joined"
+    : isClosed
+      ? "Season Closed"
+      : season.is_full
+        ? "Season Full"
+        : "Join Season";
   const joinDisabled =
-    joinMutation.isPending || season.is_member || season.is_full || !season.can_join;
+    joinMutation.isPending || season.is_member || isClosed || season.is_full || !season.can_join;
 
   const handleJoin = () => {
     if (!isAuthenticated) {
@@ -103,6 +123,16 @@ export function SeasonDetail({ seasonId }: SeasonDetailProps) {
         >
           <p className="font-manrope text-xs text-foreground">
             You joined this season successfully. RSVP options are now available.
+          </p>
+        </div>
+      ) : null}
+      {statusMutation.isError ? (
+        <div
+          role="alert"
+          className="rounded-xl bg-surface-container-low px-4 py-3"
+        >
+          <p className="font-manrope text-xs text-foreground">
+            We could not update the season status right now. Please try again.
           </p>
         </div>
       ) : null}
@@ -143,8 +173,14 @@ export function SeasonDetail({ seasonId }: SeasonDetailProps) {
                   <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/seasons/${encodeURIComponent(season.id)}/edit`)}>
                     Edit
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/seasons/${encodeURIComponent(season.id)}/close`)}>
-                    Close to New Members
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={statusMutation.isPending}
+                    onClick={() => statusMutation.mutate(isClosed ? "published" : "closed")}
+                  >
+                    {isClosed ? "Reopen Season" : "Close to New Members"}
                   </Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => router.push("/seasons/manage")}>View RSVPs</Button>
                 </div>

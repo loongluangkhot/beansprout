@@ -143,6 +143,7 @@ class SeasonService:
                 Season.book_title,
                 Season.book_author,
                 Season.cover_image_url,
+                Season.status,
                 member_count,
                 Season.max_members,
             )
@@ -159,6 +160,7 @@ class SeasonService:
                 Season.book_title,
                 Season.book_author,
                 Season.cover_image_url,
+                Season.status,
                 Season.max_members,
                 Season.created_at,
             )
@@ -219,6 +221,7 @@ class SeasonService:
                 Season.location_url.label("location_url"),
                 Season.location_address.label("location_address"),
                 Season.max_members.label("max_members"),
+                Season.status.label("status"),
                 Season.created_by_user_id.label("creator_id"),
                 func.coalesce(creator.c.display_name, creator.c.email).label("creator_name"),
                 creator.c.bio.label("creator_bio"),
@@ -231,7 +234,7 @@ class SeasonService:
             .where(
                 Season.id == season_uuid,
                 Season.is_public.is_(True),
-                Season.status == "published",
+                Season.status.in_(["published", "closed"]),
             )
             .group_by(
                 Season.id,
@@ -246,6 +249,7 @@ class SeasonService:
                 Season.location_url,
                 Season.location_address,
                 Season.max_members,
+                Season.status,
                 Season.created_by_user_id,
                 creator.c.display_name,
                 creator.c.email,
@@ -266,7 +270,7 @@ class SeasonService:
             .where(
                 Season.id == season_uuid,
                 Season.is_public.is_(True),
-                Season.status == "published",
+                Season.status.in_(["published", "closed"]),
             )
             .order_by(func.coalesce(User.display_name, User.email).asc())
         )
@@ -278,7 +282,7 @@ class SeasonService:
             .where(
                 Season.id == season_uuid,
                 Season.is_public.is_(True),
-                Season.status == "published",
+                Season.status.in_(["published", "closed"]),
                 Meetup.starts_at >= now_utc,
             )
             .order_by(Meetup.starts_at.asc())
@@ -341,9 +345,15 @@ class SeasonService:
         if viewer_user_id:
             is_member = any(member.id == viewer_user_id for member in members)
 
+        is_creator = bool(viewer_user_id and creator_id == viewer_user_id)
+        if item_data.get("status") == "closed" and not is_member and not is_creator:
+            return None
+
         item_data["is_member"] = is_member
         item_data["is_full"] = is_full
-        item_data["can_join"] = not is_member and not is_full
+        item_data["can_join"] = (
+            item_data.get("status") != "closed" and not is_member and not is_full
+        )
         item_data["members"] = members
         item_data["meetups"] = meetups
 
@@ -354,11 +364,11 @@ class SeasonService:
         join_query = text(
             """
             WITH locked_season AS (
-              SELECT s.id, s.max_members
+              SELECT s.id, s.max_members, s.status
               FROM seasons s
               WHERE s.id::text = :season_id
                 AND s.is_public = true
-                AND s.status = 'published'
+                AND s.status IN ('published', 'closed')
               FOR UPDATE
             ),
             existing_member AS (
@@ -379,6 +389,7 @@ class SeasonService:
               FROM locked_season ls
               CROSS JOIN current_counts cc
               WHERE NOT EXISTS (SELECT 1 FROM existing_member)
+                AND ls.status != 'closed'
                 AND (ls.max_members IS NULL OR cc.member_count < ls.max_members)
               RETURNING season_id
             )
@@ -395,6 +406,7 @@ class SeasonService:
                 WHERE sm.season_id = ls.id
               ), 0) AS member_count,
               ls.max_members AS max_members,
+              (ls.status = 'closed') AS is_closed,
               CASE
                 WHEN ls.max_members IS NULL THEN false
                 ELSE (
@@ -419,6 +431,65 @@ class SeasonService:
         if row is None:
             return None
         return dict(row)
+
+    async def set_season_status(
+        self,
+        *,
+        season_id: str,
+        requester_user_id: str,
+        status: str,
+    ) -> SeasonCreateData | None:
+        if status not in {"published", "closed"}:
+            raise ValueError("invalid status")
+
+        try:
+            season_uuid = UUID(season_id)
+        except ValueError as exc:
+            raise ValueError("invalid season_id") from exc
+        try:
+            requester_uuid = UUID(requester_user_id)
+        except ValueError as exc:
+            raise ValueError("invalid requester_user_id") from exc
+
+        season_result = await self.db.execute(
+            select(Season).where(Season.id == season_uuid).with_for_update()
+        )
+        season = season_result.scalar_one_or_none()
+        if season is None:
+            return None
+        if season.created_by_user_id != requester_uuid:
+            raise PermissionError("Only season creator can update status")
+        if season.status not in {"published", "closed"}:
+            raise ValueError("invalid transition")
+        if season.status == status:
+            raise ValueError("invalid transition")
+
+        season.status = status
+        try:
+            await self.db.commit()
+            await self.db.refresh(season)
+        except SQLAlchemyError:
+            await self.db.rollback()
+            raise
+
+        return SeasonCreateData(
+            id=str(season.id),
+            title=season.title,
+            book_title=season.book_title,
+            book_author=season.book_author,
+            description=season.description,
+            cover_image_url=season.cover_image_url,
+            theme=season.theme,
+            max_members=season.max_members,
+            membership_mode=season.membership_mode,
+            location_mode=season.location_mode,
+            location_name=season.location_name,
+            location_url=season.location_url,
+            location_address=season.location_address,
+            created_by_user_id=str(season.created_by_user_id),
+            status=season.status,
+            is_public=season.is_public,
+        )
 
     async def create_season(
         self,

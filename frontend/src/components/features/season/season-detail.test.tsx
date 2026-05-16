@@ -6,6 +6,7 @@ import { SeasonDetail } from "./season-detail";
 jest.mock("@/lib/api/seasons", () => ({
   getSeasonById: jest.fn(),
   joinSeason: jest.fn(),
+  updateSeasonStatus: jest.fn(),
 }));
 jest.mock("@/stores/auth-store", () => ({
   useAuthStore: jest.fn(),
@@ -52,6 +53,7 @@ describe("SeasonDetail", () => {
     getSeasonById.mockResolvedValue({
       data: {
         id: "season-1",
+        status: "published",
         title: "Spring Reads",
         theme: "Contemporary Fiction",
         description: "A warm reading circle for reflective readers.",
@@ -110,6 +112,7 @@ describe("SeasonDetail", () => {
     getSeasonById.mockResolvedValue({
       data: {
         id: "season-1",
+        status: "published",
         title: "Spring Reads",
         theme: null,
         description: null,
@@ -157,6 +160,7 @@ describe("SeasonDetail", () => {
     getSeasonById.mockResolvedValue({
       data: {
         id: "season-1",
+        status: "published",
         title: "Spring Reads",
         theme: null,
         description: null,
@@ -197,6 +201,7 @@ describe("SeasonDetail", () => {
     getSeasonById.mockResolvedValue({
       data: {
         id: "season-1",
+        status: "published",
         title: "Spring Reads",
         theme: null,
         description: null,
@@ -237,6 +242,7 @@ describe("SeasonDetail", () => {
       .mockResolvedValueOnce({
         data: {
           id: "season-1",
+          status: "published",
           title: "Spring Reads",
           theme: null,
           description: null,
@@ -260,6 +266,7 @@ describe("SeasonDetail", () => {
       .mockResolvedValueOnce({
         data: {
           id: "season-1",
+          status: "published",
           title: "Spring Reads",
           theme: null,
           description: null,
@@ -314,6 +321,7 @@ describe("SeasonDetail", () => {
     getSeasonById.mockResolvedValue({
       data: {
         id: "season-1",
+        status: "published",
         title: "Spring Reads",
         theme: null,
         description: null,

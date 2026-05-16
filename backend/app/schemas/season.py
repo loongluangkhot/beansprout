@@ -93,6 +93,7 @@ class SeasonDetailItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
+    status: str
     title: str
     theme: str | None = None
     description: str | None = None

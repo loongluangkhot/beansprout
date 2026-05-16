@@ -301,6 +301,88 @@ async def create_season(
         )
 
 
+@router.patch(
+    "/{season_id}/status",
+    response_model=SeasonCreateResponse,
+    summary="Update season status",
+    description="Allows creator to close or reopen season membership.",
+)
+async def update_season_status(
+    season_id: UUID,
+    request: Request,
+    season_status: str = Query(pattern="^(published|closed)$"),
+    db: AsyncSession = Depends(get_db),
+) -> SeasonCreateResponse:
+    service = SeasonService(db)
+
+    try:
+        user_id = _extract_required_user_id(request)
+    except ValueError:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Unauthorized",
+                "status": 401,
+                "detail": "Missing or invalid authorization header",
+            },
+        )
+
+    try:
+        result = await service.set_season_status(
+            season_id=str(season_id),
+            requester_user_id=user_id,
+            status=season_status,
+        )
+        if result is None:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                media_type="application/problem+json",
+                content={
+                    "type": "about:blank",
+                    "title": "Not Found",
+                    "status": 404,
+                    "detail": "Season not found",
+                },
+            )
+        return SeasonCreateResponse(data=result, meta={})
+    except PermissionError:
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Forbidden",
+                "status": 403,
+                "detail": "Only the season creator can update status",
+            },
+        )
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Unprocessable Entity",
+                "status": 422,
+                "detail": str(exc),
+            },
+        )
+    except SQLAlchemyError as exc:
+        logger.error("Error updating season status for %s: %s", season_id, exc)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            media_type="application/problem+json",
+            content={
+                "type": "about:blank",
+                "title": "Internal Server Error",
+                "status": 500,
+                "detail": "An error occurred while updating season status",
+            },
+        )
+
+
 @router.post(
     "/{season_id}/join",
     response_model=SeasonJoinResponse,
@@ -339,6 +421,17 @@ async def join_public_season(
                     "title": "Not Found",
                     "status": 404,
                     "detail": "Season not found",
+                },
+            )
+        if result.get("is_closed") and not result.get("is_member"):
+            return JSONResponse(
+                status_code=status.HTTP_409_CONFLICT,
+                media_type="application/problem+json",
+                content={
+                    "type": "about:blank",
+                    "title": "Conflict",
+                    "status": 409,
+                    "detail": "Season is closed",
                 },
             )
         if result.get("is_full") and not result.get("is_member"):

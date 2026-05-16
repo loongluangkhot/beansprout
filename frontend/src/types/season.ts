@@ -42,6 +42,7 @@ export interface SeasonProfileSummary {
 
 export interface SeasonDetailItem {
   id: string;
+  status: "published" | "closed" | string;
   title: string;
   theme: string | null;
   description: string | null;

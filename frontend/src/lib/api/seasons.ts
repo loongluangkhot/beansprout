@@ -181,6 +181,29 @@ export function createSeason(
   });
 }
 
+export function updateSeasonStatus(
+  seasonId: string,
+  seasonStatus: "published" | "closed",
+  token: string
+): Promise<SeasonCreateResponse> {
+  const normalizedSeasonId = seasonId.trim();
+  if (!normalizedSeasonId) {
+    throw new Error("seasonId is required");
+  }
+  if (!token) {
+    throw new Error("token is required");
+  }
+
+  const encodedSeasonId = encodeURIComponent(normalizedSeasonId);
+  return apiRequest<SeasonCreateResponse>(
+    `${SEASONS_ENDPOINT}/${encodedSeasonId}/status?season_status=${seasonStatus}`,
+    {
+      method: "PATCH",
+      headers: createAuthHeaders(token),
+    }
+  );
+}
+
 export function getCreatorSeasons(token: string): Promise<CreatorSeasonListResponse> {
   if (!token) {
     throw new Error("token is required");

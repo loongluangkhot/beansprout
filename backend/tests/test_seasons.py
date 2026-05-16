@@ -172,6 +172,7 @@ class TestSeasonDetailEndpoint:
             "creator_bio": "I host reflective, welcoming reading circles.",
             "creator_profile_photo_url": "https://example.com/host.jpg",
             "member_count": 12,
+            "status": "published",
             "location_mode": "in-person",
             "location_name": "Bean & Leaf Cafe",
             "location_url": "https://maps.example.com/bean-leaf",
@@ -238,6 +239,146 @@ class TestSeasonDetailEndpoint:
         assert payload["detail"] == "An error occurred while loading season detail"
 
 
+class TestSeasonStatusEndpoint:
+    def test_returns_401_when_updating_status_without_auth(self, client):
+        response = client.patch(f"/api/v1/seasons/{SEASON_UUID}/status?season_status=closed")
+        assert response.status_code == 401
+
+    def test_updates_status_when_creator_closes_season(self, client, monkeypatch):
+        async def mock_set_status(self, **kwargs):
+            return {
+                "id": SEASON_UUID,
+                "title": "Spring Reads",
+                "book_title": "Tomorrow",
+                "book_author": "Author",
+                "description": None,
+                "cover_image_url": None,
+                "theme": None,
+                "max_members": 12,
+                "membership_mode": "auto-join",
+                "location_mode": "in-person",
+                "location_name": "Cafe",
+                "location_url": None,
+                "location_address": "123 Main St",
+                "created_by_user_id": str(uuid4()),
+                "status": "closed",
+                "is_public": True,
+            }
+
+        monkeypatch.setattr(SeasonService, "set_season_status", mock_set_status)
+        token = create_access_token({"sub": str(uuid4()), "email": "creator@example.com"})
+
+        response = client.patch(
+            f"/api/v1/seasons/{SEASON_UUID}/status?season_status=closed",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["data"]["status"] == "closed"
+
+    def test_updates_status_when_creator_reopens_season(self, client, monkeypatch):
+        async def mock_set_status(self, **kwargs):
+            return {
+                "id": SEASON_UUID,
+                "title": "Spring Reads",
+                "book_title": "Tomorrow",
+                "book_author": "Author",
+                "description": None,
+                "cover_image_url": None,
+                "theme": None,
+                "max_members": 12,
+                "membership_mode": "auto-join",
+                "location_mode": "in-person",
+                "location_name": "Cafe",
+                "location_url": None,
+                "location_address": "123 Main St",
+                "created_by_user_id": str(uuid4()),
+                "status": "published",
+                "is_public": True,
+            }
+
+        monkeypatch.setattr(SeasonService, "set_season_status", mock_set_status)
+        token = create_access_token({"sub": str(uuid4()), "email": "creator@example.com"})
+
+        response = client.patch(
+            f"/api/v1/seasons/{SEASON_UUID}/status?season_status=published",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["data"]["status"] == "published"
+
+    def test_returns_404_when_season_not_found(self, client, monkeypatch):
+        async def mock_set_status(self, **kwargs):
+            return None
+
+        monkeypatch.setattr(SeasonService, "set_season_status", mock_set_status)
+        token = create_access_token({"sub": str(uuid4()), "email": "creator@example.com"})
+
+        response = client.patch(
+            f"/api/v1/seasons/{SEASON_UUID}/status?season_status=closed",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 404
+
+    def test_returns_403_when_non_creator_updates_status(self, client, monkeypatch):
+        async def mock_set_status(self, **kwargs):
+            raise PermissionError("forbidden")
+
+        monkeypatch.setattr(SeasonService, "set_season_status", mock_set_status)
+        token = create_access_token({"sub": str(uuid4()), "email": "member@example.com"})
+
+        response = client.patch(
+            f"/api/v1/seasons/{SEASON_UUID}/status?season_status=closed",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 403
+
+    def test_returns_422_when_status_is_invalid(self, client):
+        token = create_access_token({"sub": str(uuid4()), "email": "creator@example.com"})
+        response = client.patch(
+            f"/api/v1/seasons/{SEASON_UUID}/status?season_status=draft",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_set_season_status_rejects_invalid_transition():
+    db = AsyncMock()
+    season = MagicMock()
+    season.id = uuid4()
+    season.title = "Spring Reads"
+    season.book_title = "Tomorrow"
+    season.book_author = "Author"
+    season.description = None
+    season.cover_image_url = None
+    season.theme = None
+    season.max_members = 12
+    season.membership_mode = "auto-join"
+    season.location_mode = "in-person"
+    season.location_name = "Cafe"
+    season.location_url = None
+    season.location_address = "123 Main St"
+    season.is_public = True
+    season.created_by_user_id = uuid4()
+    season.status = "draft"
+
+    season_result = MagicMock()
+    season_result.scalar_one_or_none.return_value = season
+    db.execute.return_value = season_result
+
+    service = SeasonService(db)
+
+    with pytest.raises(ValueError, match="invalid transition"):
+        await service.set_season_status(
+            season_id=str(season.id),
+            requester_user_id=str(season.created_by_user_id),
+            status="closed",
+        )
+
+
 class TestSeasonJoinEndpoint:
     def test_returns_401_when_missing_auth_header(self, client):
         response = client.post(f"/api/v1/seasons/{SEASON_UUID}/join")
@@ -280,6 +421,28 @@ class TestSeasonJoinEndpoint:
 
         assert response.status_code == 404
         assert response.headers["content-type"].startswith("application/problem+json")
+
+    def test_returns_409_when_season_closed(self, client, mock_db_session):
+        join_result = MagicMock()
+        mock_db_session.execute.side_effect = [join_result]
+        join_result.mappings.return_value.first.return_value = {
+            "season_id": SEASON_UUID,
+            "joined": False,
+            "member_count": 10,
+            "max_members": 10,
+            "is_closed": True,
+            "is_full": True,
+            "is_member": False,
+        }
+
+        token = create_access_token({"sub": str(uuid4()), "email": "member@example.com"})
+        response = client.post(
+            f"/api/v1/seasons/{SEASON_UUID}/join",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 409
+        assert response.json()["detail"] == "Season is closed"
 
     def test_returns_409_when_season_full(self, client, mock_db_session):
         join_result = MagicMock()
@@ -345,6 +508,7 @@ class TestSeasonJoinEndpoint:
             "creator_bio": "I host reflective, welcoming reading circles.",
             "creator_profile_photo_url": "https://example.com/host.jpg",
             "member_count": 12,
+            "status": "published",
             "location_mode": "in-person",
             "location_name": "Bean & Leaf Cafe",
             "location_url": "https://maps.example.com/bean-leaf",
@@ -402,6 +566,7 @@ async def test_service_detail_query_enforces_upcoming_and_ordering_contract():
         "location_url": "https://maps.example.com/bean-leaf",
         "location_address": "123 Main St",
         "member_count": 5,
+        "status": "published",
     }
     meetups_result.mappings.return_value.all.return_value = []
     members_result.mappings.return_value.all.return_value = []
