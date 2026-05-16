@@ -5,7 +5,7 @@ Season browse schemas.
 from datetime import UTC, datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator, field_validator
 
 
 class SeasonBrowseItem(BaseModel):
@@ -78,8 +78,10 @@ class SeasonDetailItem(BaseModel):
     cover_image_url: str | None = None
     member_count: int = 0
     max_members: int | None = Field(default=None, ge=1)
+    location_mode: str = "in-person"
     location_name: str | None = None
     location_url: str | None = None
+    location_address: str | None = None
     is_member: bool = False
     can_join: bool = False
     is_full: bool = False
@@ -132,6 +134,10 @@ class SeasonCreateRequest(BaseModel):
     theme: str | None = Field(default=None, max_length=255)
     max_members: int | None = Field(default=None, ge=1, le=500)
     membership_mode: str | None = None
+    location_mode: str | None = None
+    location_name: str | None = Field(default=None, max_length=255)
+    location_url: HttpUrl | None = None
+    location_address: str | None = Field(default=None, max_length=500)
 
     @field_validator("title", "book_title", "book_author", mode="before")
     @classmethod
@@ -143,7 +149,14 @@ class SeasonCreateRequest(BaseModel):
             raise ValueError("must not be empty")
         return normalized
 
-    @field_validator("description", "cover_image_url", "theme", mode="before")
+    @field_validator(
+        "description",
+        "cover_image_url",
+        "theme",
+        "location_name",
+        "location_address",
+        mode="before",
+    )
     @classmethod
     def normalize_optional_text(cls, value: str | None) -> str | None:
         if value is None:
@@ -165,6 +178,27 @@ class SeasonCreateRequest(BaseModel):
             raise ValueError("must be one of: auto-join, approval-required")
         return normalized
 
+    @field_validator("location_mode", mode="before")
+    @classmethod
+    def normalize_location_mode(cls, value: str | None) -> str:
+        if value is None:
+            return "in-person"
+        if not isinstance(value, str):
+            raise ValueError("must be a string")
+        normalized = value.strip().lower()
+        if normalized not in {"virtual", "in-person"}:
+            raise ValueError("must be one of: virtual, in-person")
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_location_fields(self) -> "SeasonCreateRequest":
+        location_url = str(self.location_url) if self.location_url is not None else None
+
+        if self.location_mode == "virtual" and not location_url:
+            raise ValueError("location_url is required when location_mode is virtual")
+
+        return self
+
 
 class SeasonCreateData(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -178,6 +212,10 @@ class SeasonCreateData(BaseModel):
     theme: str | None = None
     max_members: int | None = Field(default=None, ge=1)
     membership_mode: str
+    location_mode: str = "in-person"
+    location_name: str | None = None
+    location_url: str | None = None
+    location_address: str | None = None
     created_by_user_id: str
     status: str
     is_public: bool

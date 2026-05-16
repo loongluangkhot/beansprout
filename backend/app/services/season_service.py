@@ -3,6 +3,7 @@ Season browse business logic.
 """
 
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlparse
 from uuid import UUID
 
 from sqlalchemy import and_, exists, func, literal, or_, select, text
@@ -133,7 +134,7 @@ class SeasonService:
                     "book_author": row["book_author"],
                     "cover_image_url": row["cover_image_url"],
                     "member_count": int(row["member_count"] or 0),
-                    "max_members": row["max_members"],
+                    "max_members": row.get("max_members"),
                 }
             )
             for row in rows
@@ -161,8 +162,10 @@ class SeasonService:
                 Season.book_title.label("book_title"),
                 Season.book_author.label("book_author"),
                 Season.cover_image_url.label("cover_image_url"),
+                Season.location_mode.label("location_mode"),
                 Season.location_name.label("location_name"),
                 Season.location_url.label("location_url"),
+                Season.location_address.label("location_address"),
                 Season.max_members.label("max_members"),
                 Season.created_by_user_id.label("creator_id"),
                 func.coalesce(creator.c.display_name, creator.c.email).label("creator_name"),
@@ -186,8 +189,10 @@ class SeasonService:
                 Season.book_title,
                 Season.book_author,
                 Season.cover_image_url,
+                Season.location_mode,
                 Season.location_name,
                 Season.location_url,
+                Season.location_address,
                 Season.max_members,
                 Season.created_by_user_id,
                 creator.c.display_name,
@@ -375,6 +380,10 @@ class SeasonService:
         theme: str | None = None,
         max_members: int | None = None,
         membership_mode: str = "auto-join",
+        location_mode: str = "in-person",
+        location_name: str | None = None,
+        location_url: str | None = None,
+        location_address: str | None = None,
     ) -> SeasonCreateData:
         try:
             creator_uuid = UUID(created_by_user_id)
@@ -401,6 +410,35 @@ class SeasonService:
         if normalized_membership_mode not in {"auto-join", "approval-required"}:
             raise ValueError("invalid membership_mode")
 
+        normalized_location_mode = (
+            location_mode.strip().lower() if isinstance(location_mode, str) else "in-person"
+        )
+        if normalized_location_mode not in {"virtual", "in-person"}:
+            raise ValueError("invalid location_mode")
+
+        normalized_location_name = (
+            location_name.strip() if isinstance(location_name, str) else None
+        )
+        normalized_location_url = location_url.strip() if isinstance(location_url, str) else None
+        normalized_location_address = (
+            location_address.strip() if isinstance(location_address, str) else None
+        )
+
+        if normalized_location_url:
+            parsed_location_url = urlparse(normalized_location_url)
+            if parsed_location_url.scheme not in {"http", "https"} or not parsed_location_url.netloc:
+                raise ValueError("invalid location_url")
+
+        if normalized_location_mode == "virtual" and not normalized_location_url:
+            raise ValueError("location_url is required when location_mode is virtual")
+
+        persisted_location_name = normalized_location_name
+        if normalized_location_mode == "virtual" and not persisted_location_name:
+            persisted_location_name = "Virtual meetup"
+        persisted_location_address = (
+            normalized_location_address if normalized_location_mode == "in-person" else None
+        )
+
         season = Season(
             title=normalized_title,
             book_title=normalized_book_title,
@@ -410,6 +448,10 @@ class SeasonService:
             theme=normalized_theme or None,
             max_members=max_members,
             membership_mode=normalized_membership_mode,
+            location_mode=normalized_location_mode,
+            location_name=persisted_location_name or None,
+            location_url=normalized_location_url or None,
+            location_address=persisted_location_address or None,
             created_by_user_id=creator_uuid,
         )
         self.db.add(season)
@@ -430,6 +472,10 @@ class SeasonService:
             theme=season.theme,
             max_members=season.max_members,
             membership_mode=season.membership_mode,
+            location_mode=season.location_mode,
+            location_name=season.location_name,
+            location_url=season.location_url,
+            location_address=season.location_address,
             created_by_user_id=str(season.created_by_user_id),
             status=season.status,
             is_public=season.is_public,

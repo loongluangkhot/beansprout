@@ -200,6 +200,10 @@ async def create_season(
             theme=payload.theme,
             max_members=payload.max_members,
             membership_mode=payload.membership_mode,
+            location_mode=payload.location_mode,
+            location_name=payload.location_name,
+            location_url=str(payload.location_url) if payload.location_url is not None else None,
+            location_address=payload.location_address,
             created_by_user_id=user_id,
         )
         return SeasonCreateResponse(data=result, meta={})

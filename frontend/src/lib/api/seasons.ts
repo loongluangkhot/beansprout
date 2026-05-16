@@ -30,6 +30,15 @@ export type {
 
 const SEASONS_ENDPOINT = "/v1/seasons";
 
+function isHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export function getSeasons(
   page = 1,
   pageSize = 10,
@@ -129,6 +138,33 @@ export function createSeason(
     normalizedPayload.membership_mode = payload.membership_mode;
   } else {
     normalizedPayload.membership_mode = "auto-join";
+  }
+
+  const locationMode = payload.location_mode ?? "in-person";
+  if (locationMode !== "virtual" && locationMode !== "in-person") {
+    throw new Error("location_mode must be virtual or in-person");
+  }
+  normalizedPayload.location_mode = locationMode;
+
+  const locationName = payload.location_name?.trim();
+  const locationUrl = payload.location_url?.trim();
+  const locationAddress = payload.location_address?.trim();
+
+  if (locationName) {
+    normalizedPayload.location_name = locationName;
+  }
+  if (locationUrl) {
+    if (!isHttpUrl(locationUrl)) {
+      throw new Error("location_url must be a valid http(s) URL");
+    }
+    normalizedPayload.location_url = locationUrl;
+  }
+  if (locationAddress) {
+    normalizedPayload.location_address = locationAddress;
+  }
+
+  if (normalizedPayload.location_mode === "virtual" && !normalizedPayload.location_url) {
+    throw new Error("location_url is required when location_mode is virtual");
   }
 
   if (!normalizedPayload.title || !normalizedPayload.book_title || !normalizedPayload.book_author) {

@@ -55,6 +55,8 @@ describe("createSeason", () => {
         theme: "  Contemporary Relationships  ",
         max_members: 12,
         membership_mode: "approval-required",
+        location_mode: "virtual",
+        location_url: "  https://meet.example.com/room-1  ",
       },
       "token-123"
     );
@@ -71,21 +73,74 @@ describe("createSeason", () => {
         theme: "Contemporary Relationships",
         max_members: 12,
         membership_mode: "approval-required",
+        location_mode: "virtual",
+        location_url: "https://meet.example.com/room-1",
       }),
     });
+  });
+
+  it("rejects invalid location mode combinations", () => {
+    expect(() =>
+      createSeason(
+        {
+          title: "Title",
+          book_title: "Book",
+          book_author: "Author",
+          location_mode: "virtual",
+        },
+        "token-123"
+      )
+    ).toThrow("location_url is required when location_mode is virtual");
+
+    expect(() =>
+      createSeason(
+        {
+          title: "Title",
+          book_title: "Book",
+          book_author: "Author",
+          location_mode: "in-person",
+          location_url: "ftp://example.com/location",
+        },
+        "token-123"
+      )
+    ).toThrow("location_url must be a valid http(s) URL");
+
+    expect(() =>
+      createSeason(
+        {
+          title: "Title",
+          book_title: "Book",
+          book_author: "Author",
+          location_mode: "hybrid" as never,
+        },
+        "token-123"
+      )
+    ).toThrow("location_mode must be virtual or in-person");
   });
 
   it("requires token and required fields", () => {
     expect(() =>
       createSeason(
-        { title: "", book_title: "Book", book_author: "Author" },
+        {
+          title: "",
+          book_title: "Book",
+          book_author: "Author",
+          location_mode: "in-person",
+          location_name: "Bean & Leaf Cafe",
+        },
         "token-123"
       )
     ).toThrow("title, book_title, and book_author are required");
 
     expect(() =>
       createSeason(
-        { title: "Title", book_title: "Book", book_author: "Author" },
+        {
+          title: "Title",
+          book_title: "Book",
+          book_author: "Author",
+          location_mode: "in-person",
+          location_name: "Bean & Leaf Cafe",
+        },
         ""
       )
     ).toThrow("token is required");

@@ -50,8 +50,10 @@ export interface SeasonDetailItem {
   cover_image_url: string | null;
   member_count: number;
   max_members: number | null;
+  location_mode: "virtual" | "in-person";
   location_name: string | null;
   location_url: string | null;
+  location_address: string | null;
   is_member: boolean;
   can_join: boolean;
   is_full: boolean;
@@ -92,6 +94,10 @@ export interface SeasonCreateRequest {
   theme?: string;
   max_members?: number;
   membership_mode?: "auto-join" | "approval-required";
+  location_mode?: "virtual" | "in-person";
+  location_name?: string;
+  location_url?: string;
+  location_address?: string;
 }
 
 export interface SeasonCreateData {
@@ -104,6 +110,10 @@ export interface SeasonCreateData {
   theme: string | null;
   max_members: number | null;
   membership_mode: "auto-join" | "approval-required";
+  location_mode: "virtual" | "in-person";
+  location_name: string | null;
+  location_url: string | null;
+  location_address: string | null;
   created_by_user_id: string;
   status: string;
   is_public: boolean;

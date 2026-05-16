@@ -104,6 +104,9 @@ describe("SeasonCreateForm", () => {
     fireEvent.change(screen.getByLabelText(/Start date and time/i), {
       target: { value: futureLocalDatetime(60) },
     });
+    fireEvent.change(screen.getByLabelText(/Location name/i), {
+      target: { value: "Bean & Leaf Cafe" },
+    });
 
     fireEvent.click(screen.getByRole("button", { name: /Create season/i }));
 
@@ -116,6 +119,8 @@ describe("SeasonCreateForm", () => {
           theme: "Contemporary Relationships",
           max_members: 22,
           membership_mode: "auto-join",
+          location_mode: "in-person",
+          location_name: "Bean & Leaf Cafe",
         }),
         "token-123"
       );
@@ -149,6 +154,9 @@ describe("SeasonCreateForm", () => {
     fireEvent.change(screen.getByLabelText(/Start date and time/i), {
       target: { value: pastLocalDatetime(2) },
     });
+    fireEvent.change(screen.getByLabelText(/Location name/i), {
+      target: { value: "Bean & Leaf Cafe" },
+    });
 
     fireEvent.click(screen.getByRole("button", { name: /Create season/i }));
 
@@ -179,6 +187,9 @@ describe("SeasonCreateForm", () => {
     const startValue = futureLocalDatetime(45);
     fireEvent.change(screen.getByLabelText(/Start date and time/i), {
       target: { value: startValue },
+    });
+    fireEvent.change(screen.getByLabelText(/Location name/i), {
+      target: { value: "Bean & Leaf Cafe" },
     });
 
     await waitFor(() => {
@@ -211,5 +222,30 @@ describe("SeasonCreateForm", () => {
         "token-123"
       );
     });
+  });
+
+  it("requires virtual meeting link when meetup format is virtual", async () => {
+    renderForm();
+
+    fireEvent.change(screen.getByLabelText(/Season title/i), {
+      target: { value: "Spring Reads" },
+    });
+    fireEvent.change(screen.getByLabelText(/Book title/i), {
+      target: { value: "Tomorrow" },
+    });
+    fireEvent.change(screen.getByLabelText(/Author/i), {
+      target: { value: "Gabrielle Zevin" },
+    });
+    fireEvent.change(screen.getByLabelText(/Start date and time/i), {
+      target: { value: futureLocalDatetime(45) },
+    });
+    fireEvent.change(screen.getByLabelText(/Meetup format/i), {
+      target: { value: "virtual" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Create season/i }));
+
+    expect(await screen.findByText(/Please add a virtual meeting link/i)).toBeInTheDocument();
+    expect(createSeason).not.toHaveBeenCalled();
   });
 });

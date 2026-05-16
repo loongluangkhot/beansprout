@@ -212,6 +212,9 @@ export function SeasonDetail({ seasonId }: SeasonDetailProps) {
       <Card className="bs-panel">
         <CardContent className="p-6 space-y-2">
           <h2 className="font-newsreader text-2xl text-foreground">Location</h2>
+          <p className="font-manrope text-xs uppercase tracking-wide text-foreground-muted">
+            {season.location_mode === "virtual" ? "Virtual meetup" : "In-person meetup"}
+          </p>
           {season.location_name ? (
             <p className="font-manrope text-sm text-foreground">{season.location_name}</p>
           ) : (
@@ -219,6 +222,9 @@ export function SeasonDetail({ seasonId }: SeasonDetailProps) {
               Location details will be shared soon.
             </p>
           )}
+          {season.location_address ? (
+            <p className="font-manrope text-sm text-foreground-muted">{season.location_address}</p>
+          ) : null}
           {season.location_url ? (
             <a
               href={season.location_url}

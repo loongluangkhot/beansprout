@@ -124,8 +124,10 @@ class TestSeasonDetailEndpoint:
             "creator_bio": "I host reflective, welcoming reading circles.",
             "creator_profile_photo_url": "https://example.com/host.jpg",
             "member_count": 12,
+            "location_mode": "in-person",
             "location_name": "Bean & Leaf Cafe",
             "location_url": "https://maps.example.com/bean-leaf",
+            "location_address": "123 Main St",
         }
         meetups_result.mappings.return_value.all.return_value = [
             {
@@ -147,8 +149,10 @@ class TestSeasonDetailEndpoint:
         assert response.status_code == 200
         payload = response.json()
         assert payload["data"]["id"] == SEASON_UUID
+        assert payload["data"]["location_mode"] == "in-person"
         assert payload["data"]["location_name"] == "Bean & Leaf Cafe"
         assert payload["data"]["location_url"] == "https://maps.example.com/bean-leaf"
+        assert payload["data"]["location_address"] == "123 Main St"
         assert payload["data"]["creator"]["name"] == "Season Host"
         assert payload["data"]["creator"]["bio"] == "I host reflective, welcoming reading circles."
         assert len(payload["data"]["members"]) == 2
@@ -293,8 +297,10 @@ class TestSeasonJoinEndpoint:
             "creator_bio": "I host reflective, welcoming reading circles.",
             "creator_profile_photo_url": "https://example.com/host.jpg",
             "member_count": 12,
+            "location_mode": "in-person",
             "location_name": "Bean & Leaf Cafe",
             "location_url": "https://maps.example.com/bean-leaf",
+            "location_address": "123 Main St",
         }
         meetups_result.mappings.return_value.all.return_value = [
             {"id": "meetup-1", "starts_at": "not-a-datetime"}
@@ -343,8 +349,10 @@ async def test_service_detail_query_enforces_upcoming_and_ordering_contract():
         "creator_name": "Season Host",
         "creator_bio": "I host reflective, welcoming reading circles.",
         "creator_profile_photo_url": "https://example.com/host.jpg",
+        "location_mode": "in-person",
         "location_name": "Bean & Leaf Cafe",
         "location_url": "https://maps.example.com/bean-leaf",
+        "location_address": "123 Main St",
         "member_count": 5,
     }
     meetups_result.mappings.return_value.all.return_value = []
@@ -443,6 +451,8 @@ class TestSeasonCreateEndpoint:
                 "cover_image_url": " https://example.com/cover.jpg ",
                 "theme": "  Contemporary Relationships  ",
                 "max_members": 25,
+                "location_mode": "virtual",
+                "location_url": "https://meet.example.com/room-1",
             },
         )
 
@@ -456,6 +466,10 @@ class TestSeasonCreateEndpoint:
         assert payload["data"]["theme"] == "Contemporary Relationships"
         assert payload["data"]["max_members"] == 25
         assert payload["data"]["membership_mode"] == "auto-join"
+        assert payload["data"]["location_mode"] == "virtual"
+        assert payload["data"]["location_name"] == "Virtual meetup"
+        assert payload["data"]["location_url"] == "https://meet.example.com/room-1"
+        assert payload["data"]["location_address"] is None
         assert payload["data"]["status"] == "draft"
         assert payload["data"]["is_public"] is True
 
@@ -501,6 +515,10 @@ async def test_service_create_season_persists_creator_and_defaults():
         theme="  Contemporary Relationships  ",
         max_members=25,
         membership_mode="approval-required",
+        location_mode="in-person",
+        location_name="Bean & Leaf Cafe",
+        location_address="123 Main St",
+        location_url="https://maps.example.com/bean-leaf",
         created_by_user_id=user_id,
     )
 
@@ -512,6 +530,10 @@ async def test_service_create_season_persists_creator_and_defaults():
     assert result.theme == "Contemporary Relationships"
     assert result.max_members == 25
     assert result.membership_mode == "approval-required"
+    assert result.location_mode == "in-person"
+    assert result.location_name == "Bean & Leaf Cafe"
+    assert result.location_url == "https://maps.example.com/bean-leaf"
+    assert result.location_address == "123 Main St"
     assert result.created_by_user_id == user_id
     assert result.status == "draft"
     assert result.is_public is True
@@ -549,6 +571,23 @@ def test_rejects_invalid_max_members_payload(client):
             "book_title": "Tomorrow",
             "book_author": "Gabrielle Zevin",
             "max_members": 0,
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("application/json")
+
+
+def test_rejects_virtual_mode_without_location_url(client):
+    token = create_access_token({"sub": str(uuid4()), "email": "member@example.com"})
+    response = client.post(
+        "/api/v1/seasons",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "title": "Spring Reads",
+            "book_title": "Tomorrow",
+            "book_author": "Gabrielle Zevin",
+            "location_mode": "virtual",
         },
     )
 

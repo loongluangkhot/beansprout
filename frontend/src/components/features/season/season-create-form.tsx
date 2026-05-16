@@ -38,6 +38,10 @@ const schema = z.object({
   theme: z.string().optional(),
   max_members: z.coerce.number().int().min(1, "Please choose between 1 and 500 members.").max(500, "Please choose between 1 and 500 members.").optional(),
   membership_mode: z.enum(["auto-join", "approval-required"]),
+  location_mode: z.enum(["virtual", "in-person"]),
+  location_name: z.string().max(255, "Please keep the location name under 255 characters.").optional(),
+  location_url: z.string().optional(),
+  location_address: z.string().max(500, "Please keep the address under 500 characters.").optional(),
   start_date: z
     .string()
     .trim()
@@ -48,6 +52,35 @@ const schema = z.object({
     }, "Please choose a future start date and time."),
   duration_weeks: z.coerce.number().int().min(1).max(52),
   frequency: z.enum(["weekly", "bi-weekly", "monthly"]),
+}).superRefine((data, ctx) => {
+  const locationUrl = data.location_url?.trim();
+
+  if (locationUrl) {
+    try {
+      const parsedLocationUrl = new URL(locationUrl);
+      if (parsedLocationUrl.protocol !== "http:" && parsedLocationUrl.protocol !== "https:") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["location_url"],
+          message: "Please enter a valid http(s) URL.",
+        });
+      }
+    } catch {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["location_url"],
+        message: "Please enter a valid URL.",
+      });
+    }
+  }
+
+  if (data.location_mode === "virtual" && !locationUrl) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["location_url"],
+      message: "Please add a virtual meeting link.",
+    });
+  }
 });
 
 type SeasonCreateFormData = z.infer<typeof schema>;
@@ -74,6 +107,10 @@ export function SeasonCreateForm() {
       theme: "",
       max_members: 20,
       membership_mode: "auto-join",
+      location_mode: "in-person",
+      location_name: "",
+      location_url: "",
+      location_address: "",
       start_date: "",
       duration_weeks: 10,
       frequency: "weekly",
@@ -91,6 +128,7 @@ export function SeasonCreateForm() {
   const startDate = watch("start_date");
   const durationWeeks = watch("duration_weeks");
   const frequency = watch("frequency");
+  const locationMode = watch("location_mode");
 
   const generatedMeetups = useMemo(() => {
     if (!startDate) {
@@ -165,6 +203,10 @@ export function SeasonCreateForm() {
           ? undefined
           : values.cover_image_url?.trim() || undefined,
       theme: values.theme?.trim() || undefined,
+      location_mode: values.location_mode,
+      location_name: values.location_name?.trim() || undefined,
+      location_url: values.location_url?.trim() || undefined,
+      location_address: values.location_address?.trim() || undefined,
       max_members: values.max_members,
       membership_mode: "auto-join",
     };
@@ -265,6 +307,40 @@ export function SeasonCreateForm() {
         </select>
         <p className="font-manrope text-xs text-foreground-muted">For this MVP, members join automatically.</p>
       </div>
+
+      <div className="space-y-1">
+        <label htmlFor="location-mode" className="font-manrope text-sm text-foreground">Meetup format</label>
+        <select
+          id="location-mode"
+          className="w-full rounded-2xl border border-input bg-surface-container-high px-4 py-3 text-sm text-foreground font-manrope focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          {...register("location_mode")}
+        >
+          <option value="in-person">In-person meetup</option>
+          <option value="virtual">Virtual meetup</option>
+        </select>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1">
+          <label htmlFor="location-name" className="font-manrope text-sm text-foreground">Location name</label>
+          <Input id="location-name" {...register("location_name")} placeholder="Bean & Leaf Cafe" />
+          {errors.location_name ? <p className="font-manrope text-xs text-foreground">{errors.location_name.message}</p> : null}
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="location-url" className="font-manrope text-sm text-foreground">
+            {locationMode === "virtual" ? "Meeting link" : "Location link (optional)"}
+          </label>
+          <Input id="location-url" {...register("location_url")} placeholder="https://..." />
+          {errors.location_url ? <p className="font-manrope text-xs text-foreground">{errors.location_url.message}</p> : null}
+        </div>
+      </div>
+
+      {locationMode === "in-person" ? (
+        <div className="space-y-1">
+          <label htmlFor="location-address" className="font-manrope text-sm text-foreground">Address (optional)</label>
+          <Input id="location-address" {...register("location_address")} placeholder="123 Main St, Springfield" />
+        </div>
+      ) : null}
 
       <div className="space-y-2">
         <label htmlFor="season-cover" className="font-manrope text-sm text-foreground">Cover image</label>
